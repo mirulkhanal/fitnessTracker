@@ -5,25 +5,47 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+const tintColorLight = '#4CAF50';
+const tintColorDark = '#4CAF50';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
+    text: '#1A1A1A',
+    background: '#FFFFFF',
     tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
+    icon: '#6B7280',
+    tabIconDefault: '#9CA3AF',
     tabIconSelected: tintColorLight,
+    cardBackground: '#F8FAFC',
+    accent: '#4CAF50',
+    secondaryAccent: '#FFD700',
+    purpleAccent: '#9C27B0',
+    pinkAccent: '#E91E63',
+    error: '#EF4444',
+    // Additional light mode specific colors
+    border: '#E5E7EB',
+    shadow: 'rgba(0, 0, 0, 0.1)',
+    separator: 'rgba(0, 0, 0, 0.08)',
+    overlay: 'rgba(0, 0, 0, 0.5)',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
+    text: '#FFFFFF',
+    background: '#1A1A1A',
     tint: tintColorDark,
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
     tabIconSelected: tintColorDark,
+    cardBackground: '#2A2A2A',
+    accent: '#4CAF50',
+    secondaryAccent: '#FFD700',
+    purpleAccent: '#9C27B0',
+    pinkAccent: '#E91E63',
+    error: '#FF1744',
+    // Additional dark mode specific colors
+    border: '#374151',
+    shadow: 'rgba(0, 0, 0, 0.3)',
+    separator: 'rgba(255, 255, 255, 0.05)',
+    overlay: 'rgba(0, 0, 0, 0.7)',
   },
 };
 

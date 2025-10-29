@@ -1,7 +1,7 @@
 // Fallback for using MaterialIcons on Android and web.
 
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
+import { SymbolViewProps, SymbolWeight } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
@@ -18,6 +18,38 @@ const MAPPING = {
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
+  'folder.fill': 'folder',
+  'safari': 'explore',
+  'plus': 'add',
+  'trash': 'delete',
+  'photo.fill': 'photo-camera',
+  'photo': 'photo-camera',
+  'calendar': 'calendar-today',
+  'flame.fill': 'local-fire-department',
+  'person.fill': 'person',
+  'rectangle.fill': 'crop-square',
+  'hand.raised.fill': 'pan-tool',
+  'figure.walk': 'directions-walk',
+  'heart.fill': 'favorite',
+  'figure.stand': 'accessibility',
+  'checkmark.circle.fill': 'check-circle',
+  'checkmark': 'check',
+  'gear': 'settings',
+  'bell.fill': 'notifications',
+  'moon.fill': 'nightlight-round',
+  'square.and.arrow.up': 'ios-share',
+  'info.circle': 'info',
+  'hand.raised': 'pan-tool',
+  'star.fill': 'star',
+  'leaf.fill': 'eco',
+  'drop.fill': 'water-drop',
+  'sun.max.fill': 'wb-sunny',
+  'cloud.fill': 'cloud',
+  'bolt.fill': 'bolt',
+  'snow': 'ac-unit',
+  'wind': 'air',
+  'tornado': 'tornado',
+  'hurricane': 'storm',
 } as IconMapping;
 
 /**
