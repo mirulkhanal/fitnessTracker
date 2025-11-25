@@ -1,5 +1,5 @@
+import { FitnessIconPicker } from '@/components/icons/FitnessIconPicker';
 import { Button } from '@/components/ui/Button';
-import { IconSelector } from '@/components/ui/icon-selector';
 import { Input } from '@/components/ui/Input';
 import { ThemedText } from '@/components/ui/themed-text';
 import { CreateCategoryRequest } from '@/types/category.types';
@@ -58,13 +58,17 @@ export function CategoryForm({
         style={styles.input}
       />
 
-      <IconSelector
-        selectedIcon={icon}
-        onIconSelect={(selectedIcon, selectedColor) => {
-          setIcon(selectedIcon);
-          setColor(selectedColor);
+      <FitnessIconPicker
+        value={icon}
+        onChange={(id, selectedColor) => {
+          setIcon(id);
+          if (selectedColor) {
+            setColor(selectedColor);
+          }
         }}
-        title="Choose Icon:"
+        collapsible={true}
+        visibleIcons={4}
+        columns={4}
       />
 
       <View style={styles.buttons}>

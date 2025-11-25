@@ -1,0 +1,12 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+
+<path d="M33 46.0002V43.0002C33 39.2289 33 37.3433 34.1716 36.1718C35.3431 35.0002 37.2288 35.0002 41 35.0002M67 46.0002V43.0002C67 39.2289 67 37.3433 65.8284 36.1718C64.6569 35.0002 62.7712 35.0002 59 35.0002" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M70 46.0002H64" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M36 46.0002H30" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M44.7355 33.0158H55.2645C56.3382 33.0158 57.8016 32.8244 58.5532 33.7749C59 34.3398 59 35.1756 59 36.8473C59 37.8802 58.804 38.2248 57.8259 38.6261L55.6678 39.5116C54.8467 39.8485 54.4361 40.0169 54.008 39.9987C52.5429 39.9362 51.4909 38.3865 50 38.3865C48.5091 38.3865 47.4571 39.9362 45.992 39.9987C45.5639 40.0169 45.1533 39.8485 44.3322 39.5116L42.1741 38.6261C41.196 38.2248 41 37.8802 41 36.8473C41 35.1756 41 34.3398 41.4468 33.7749C42.1984 32.8244 43.6618 33.0158 44.7355 33.0158Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M44.7355 54.0002H55.2645C56.3382 54.0002 57.8016 53.8089 58.5532 54.7593C59 55.3243 59 56.1601 59 57.8318C59 58.8647 58.804 59.2093 57.8259 59.6106L55.6678 60.496C54.8467 60.8329 54.4361 61.0014 54.008 60.9831C52.5429 60.9206 51.4909 59.371 50 59.371C48.5091 59.371 47.4571 60.9206 45.992 60.9831C45.5639 61.0014 45.1533 60.8329 44.3322 60.496L42.1741 59.6106C41.196 59.2093 41 58.8647 41 57.8318C41 56.1601 41 55.3243 41.4468 54.7593C42.1984 53.8089 43.6618 54.0002 44.7355 54.0002Z" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M32.8287 66.8282V63.8282C32.8287 60.057 32.8287 58.1714 34.0002 56.9998C35.1718 55.8282 37.0574 55.8282 40.8287 55.8282M66.8287 66.8282V63.8282C66.8287 60.057 66.8287 58.1714 65.6571 56.9998C64.4855 55.8282 62.5999 55.8282 58.8287 55.8282" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M70 67H64" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M36 67H30" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

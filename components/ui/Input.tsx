@@ -97,6 +97,7 @@ export function Input({
           keyboardType={keyboardType}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
+          blurOnSubmit={false}
         />
       </View>
       {error && (

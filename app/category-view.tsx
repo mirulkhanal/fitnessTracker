@@ -8,9 +8,7 @@ import { ThemedText } from '@/components/ui/themed-text';
 import { ThemedView } from '@/components/ui/themed-view';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useImagePickerModal } from '@/hooks/use-image-picker-modal';
-import { ProgressImage } from '@/services/local-storage.service';
 import { usePhotosStore } from '@/store/photos.store';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -99,41 +97,6 @@ export default function CategoryViewScreen() {
     }
   };
 
-  const renderImageItem = ({ item }: { item: ProgressImage }) => (
-    <View style={[styles.imageItem, { backgroundColor: colors.cardBackground }]}>
-      <Image source={{ uri: item.uri }} style={styles.image} />
-      <View style={styles.imageInfo}>
-        <ThemedText style={styles.imageDate}>
-          {new Date(item.timestamp).toLocaleDateString()}
-        </ThemedText>
-      </View>
-      <TouchableOpacity
-        style={[styles.deleteButton, { backgroundColor: colors.pinkAccent + '20' }]}
-        onPress={() => handleDeleteImage(item.id)}
-      >
-        <IconSymbol name="trash" size={18} color={colors.pinkAccent} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <IconSymbol name="photo" size={80} color="#ccc" />
-      <ThemedText type="subtitle" style={styles.emptyTitle}>
-        No Photos Yet
-      </ThemedText>
-      <ThemedText style={styles.emptySubtitle}>
-        Start capturing photos in this category to see your progress!
-      </ThemedText>
-      <TouchableOpacity
-        style={styles.addPhotoButton}
-        onPress={handleAddPhoto}
-      >
-        <IconSymbol name="plus" size={20} color="white" />
-        <ThemedText style={styles.addPhotoButtonText}>Add Photo</ThemedText>
-      </TouchableOpacity>
-    </View>
-  );
 
   if (loading) {
     return (

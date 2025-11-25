@@ -1,0 +1,12 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+
+<path d="M38 39H41.0557C41.6767 39 42.2871 38.849 42.8541 38.5958C47.618 36.4681 52.382 36.4681 57.1459 38.5958C57.7129 38.849 58.3233 39 58.9443 39H62" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M38 61H41.0557C41.6767 61 42.2871 60.849 42.8541 60.5958C47.618 58.4681 52.382 58.4681 57.1459 60.5958C57.7129 60.849 58.3233 61 58.9443 61H62" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M38 32V46M62 32V46" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M38 54V68M62 54V68" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M33 39H30M67 39H70" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M33 61H30M67 61H70" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M33 35V43M67 35V43" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M33 57V65M67 57V65" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

@@ -168,8 +168,7 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const { localStorageService } = await import('@/services/local-storage.service');
-      // This would need to be implemented in the service
-      // await localStorageService.updateCategory(id, updates);
+      await localStorageService.updateCategory(id, updates);
       
       set(state => ({
         categories: state.categories.map(cat => 
@@ -180,6 +179,7 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
       
       // Refresh stats after updating
       await get().loadCategoryStats();
+      get().loadStats();
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to update category',

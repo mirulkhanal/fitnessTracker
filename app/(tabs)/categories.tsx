@@ -6,17 +6,19 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useCategoriesStore } from '@/store/categories.store';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Modal, StyleSheet } from 'react-native';
+import { Alert, Modal, ScrollView, StyleSheet } from 'react-native';
 
 export default function CategoriesScreen() {
   const { colors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any | null>(null);
 
   const {
     categoryStats,
     loading,
     createCategory,
     deleteCategory,
+    updateCategory,
     loadCategoryStats,
   } = useCategoriesStore();
 
@@ -40,6 +42,24 @@ export default function CategoriesScreen() {
     try {
       await createCategory(request);
       setModalVisible(false);
+      setEditingCategory(null);
+    } catch (error) {
+      // Error already handled in store
+    }
+  };
+
+  const handleEditCategory = (category: any) => {
+    setEditingCategory(category);
+    setModalVisible(true);
+  };
+
+  const handleUpdateCategory = async (request: any) => {
+    if (!editingCategory) return;
+    
+    try {
+      await updateCategory(editingCategory.id, request);
+      setModalVisible(false);
+      setEditingCategory(null);
     } catch (error) {
       // Error already handled in store
     }
@@ -82,11 +102,11 @@ export default function CategoriesScreen() {
         categories={categoryStats}
         onCategoryPress={handleCategoryPress}
         onCategoryDelete={handleDeleteCategory}
+        onCategoryEdit={handleEditCategory}
         onAddCategory={() => setModalVisible(true)}
         loading={loading}
       />
 
-      {/* Floating Add Category Button */}
       <AnimatedAddButton 
         onPress={() => setModalVisible(true)}
         hapticType="medium"
@@ -98,15 +118,30 @@ export default function CategoriesScreen() {
         visible={modalVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          setModalVisible(false);
+          setEditingCategory(null);
+        }}
       >
         <ThemedView style={[styles.modalOverlay, { backgroundColor: colors.background }]}>
           <ThemedView style={[styles.modalContent, { backgroundColor: colors.cardBackground }]}>
-            <CategoryForm
-              onSubmit={handleAddCategory}
-              onCancel={() => setModalVisible(false)}
-              loading={loading}
-            />
+            <ScrollView 
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <CategoryForm
+                onSubmit={editingCategory ? handleUpdateCategory : handleAddCategory}
+                onCancel={() => {
+                  setModalVisible(false);
+                  setEditingCategory(null);
+                }}
+                loading={loading}
+                initialName={editingCategory?.name}
+                initialIcon={editingCategory?.icon}
+                initialColor={editingCategory?.color}
+              />
+            </ScrollView>
           </ThemedView>
         </ThemedView>
       </Modal>
@@ -131,7 +166,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    maxWidth: '100%',
+    maxWidth: '90%',
+    maxHeight: '85%',
     width: '100%',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
   },
 });

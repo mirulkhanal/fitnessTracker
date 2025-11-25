@@ -394,6 +394,20 @@ class LocalStorageService {
     }
   }
 
+  // Update a specific category
+  async updateCategory(id: string, updates: Partial<Category>): Promise<void> {
+    try {
+      const categories = await this.getCustomCategories();
+      const updatedCategories = categories.map(cat => 
+        cat.id === id ? { ...cat, ...updates } : cat
+      );
+      await this.saveCustomCategories(updatedCategories);
+    } catch (error) {
+      console.error('Error updating category:', error);
+      throw error;
+    }
+  }
+
   // Get all categories (default + custom)
   async getAllCategories(): Promise<Category[]> {
     const defaultCategories: Category[] = [

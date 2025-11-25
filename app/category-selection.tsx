@@ -1,7 +1,7 @@
+import { FitnessIconPicker } from '@/components/icons/FitnessIconPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { HapticButton } from '@/components/ui/haptic-button';
-import { IconSelector } from '@/components/ui/icon-selector';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Input } from '@/components/ui/Input';
 import { ThemedText } from '@/components/ui/themed-text';
@@ -193,12 +193,17 @@ export default function CategorySelectionScreen() {
               />
               
               {/* Icon Selection */}
-              <IconSelector
-                selectedIcon={newCategoryIcon}
-                onIconSelect={(icon, color) => {
-                  setNewCategoryIcon(icon);
-                  setNewCategoryColor(color);
+              <FitnessIconPicker
+                value={newCategoryIcon}
+                onChange={(id, selectedColor) => {
+                  setNewCategoryIcon(id);
+                  if (selectedColor) {
+                    setNewCategoryColor(selectedColor);
+                  }
                 }}
+                collapsible={true}
+                visibleIcons={4}
+                columns={4}
               />
               
               <View style={styles.inputButtons}>

@@ -1,8 +1,9 @@
 // Fallback for using MaterialIcons on Android and web.
 
+import { customIcons } from '@/components/icons/custom-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { SymbolViewProps, SymbolWeight } from 'expo-symbols';
-import { ComponentProps } from 'react';
+import React, { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
 type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
@@ -22,6 +23,7 @@ const MAPPING = {
   'safari': 'explore',
   'plus': 'add',
   'trash': 'delete',
+  'pencil': 'edit',
   'photo.fill': 'photo-camera',
   'photo': 'photo-camera',
   'calendar': 'calendar-today',
@@ -69,5 +71,21 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
+  const Custom = (customIcons as any)[name];
+  if (Custom) {
+    const strokeColor = typeof color === 'string' ? (color as string) : '#FFFFFF';
+    // Force outline-only by wrapping with explicit fill/stroke overrides
+    return (
+      <Custom
+        width={size}
+        height={size}
+        fill="none"
+        stroke={strokeColor}
+        strokeWidth={2 as any}
+        color={strokeColor as any}
+        fillRule="evenodd"
+      />
+    );
+  }
   return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }
