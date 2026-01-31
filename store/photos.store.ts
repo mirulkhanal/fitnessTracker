@@ -1,3 +1,5 @@
+import { photosService } from '@/services/photos.service';
+import { Category } from '@/types/category.types';
 import { LoadingState } from '@/types/common.types';
 import { ProgressImage } from '@/types/photo.types';
 import { create } from 'zustand';
@@ -13,8 +15,23 @@ interface PhotosStore extends LoadingState {
   // Getters
   getPhotosByCategory: (categoryId: string) => ProgressImage[];
   getLatestPhoto: () => ProgressImage | null;
-  getValidCategories: (photo: ProgressImage, allCategories: any[]) => string[];
+  getValidCategories: (photo: ProgressImage, allCategories: Category[]) => string[];
 }
+
+const getCategoryIds = (photo: ProgressImage): string[] => {
+  if (Array.isArray(photo.categories)) {
+    return photo.categories;
+  }
+
+  const legacyPhoto = photo as unknown as { categories?: string[]; category?: string };
+  if (Array.isArray(legacyPhoto.categories)) {
+    return legacyPhoto.categories;
+  }
+  if (legacyPhoto.category) {
+    return [legacyPhoto.category];
+  }
+  return [];
+};
 
 export const usePhotosStore = create<PhotosStore>((set, get) => ({
   photos: [],
@@ -24,8 +41,7 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
   loadPhotos: async (categoryId?: string) => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      const photos = await localStorageService.getProgressImages(categoryId);
+      const photos = await photosService.listPhotos(categoryId);
       set({ photos, loading: false });
     } catch (error) {
       set({ 
@@ -38,19 +54,17 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
   savePhoto: async (imageUri: string, categories: string | string[], width: number = 0, height: number = 0) => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      const savedPhoto = await localStorageService.saveProgressImage(
-        imageUri,
-        categories,
-        width,
-        height
-      );
+      const savedPhoto = await photosService.savePhoto(imageUri, categories, width, height);
       
       set(state => ({
         photos: [savedPhoto, ...state.photos],
         loading: false
       }));
       
+      const { useCategoriesStore } = await import('@/store/categories.store');
+      const categoriesStore = useCategoriesStore.getState();
+      await categoriesStore.loadCategoryStats();
+
       // Trigger stats refresh by importing and calling the stats store
       const { useStatsStore } = await import('@/store/stats.store');
       const statsStore = useStatsStore.getState();
@@ -69,14 +83,17 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
   deletePhoto: async (id: string) => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      await localStorageService.deleteProgressImage(id);
+      await photosService.deletePhoto(id);
       
       set(state => ({
         photos: state.photos.filter(photo => photo.id !== id),
         loading: false
       }));
       
+      const { useCategoriesStore } = await import('@/store/categories.store');
+      const categoriesStore = useCategoriesStore.getState();
+      await categoriesStore.loadCategoryStats();
+
       // Trigger stats refresh
       const { useStatsStore } = await import('@/store/stats.store');
       const statsStore = useStatsStore.getState();
@@ -91,13 +108,7 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
 
   getPhotosByCategory: (categoryId: string) => {
     return get().photos.filter(photo => {
-      const legacyImg = photo as any;
-      if (legacyImg.categories && Array.isArray(legacyImg.categories)) {
-        return legacyImg.categories.includes(categoryId);
-      } else if (legacyImg.category) {
-        return legacyImg.category === categoryId;
-      }
-      return false;
+      return getCategoryIds(photo).includes(categoryId);
     });
   },
 
@@ -106,12 +117,13 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
     return photos.length > 0 ? photos[0] : null;
   },
 
-  getValidCategories: (photo: ProgressImage, allCategories: any[]) => {
-    if (!photo.categories || photo.categories.length === 0) return [];
+  getValidCategories: (photo: ProgressImage, allCategories: Category[]) => {
+    const categoryIds = getCategoryIds(photo);
+    if (categoryIds.length === 0) return [];
     
-    return photo.categories
+    return categoryIds
       .map(categoryId => allCategories.find(cat => cat.id === categoryId))
-      .filter(Boolean)
+      .filter((cat): cat is Category => Boolean(cat))
       .map(cat => cat.name);
   },
 }));

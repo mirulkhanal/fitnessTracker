@@ -1,14 +1,20 @@
+import { useAlert } from '@/contexts/AlertContext';
 import { PhotoCaptureResult } from '@/types/progress.interface';
 import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
 
 export const useImagePickerModal = () => {
+  const { showAlert } = useAlert();
+
   const requestPermissions = async (): Promise<boolean> => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     const cameraStatus = await ImagePicker.requestCameraPermissionsAsync();
     
     if (status !== 'granted' || cameraStatus.status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera and photo library permissions are required to capture progress photos.');
+      showAlert({
+        title: 'Permission needed',
+        message: 'Camera and photo library permissions are required to capture progress photos.',
+        variant: 'warning',
+      });
       return false;
     }
     return true;
@@ -35,7 +41,11 @@ export const useImagePickerModal = () => {
       return null;
     } catch (error) {
       console.error('Camera error:', error);
-      Alert.alert('Error', 'Failed to capture photo');
+      showAlert({
+        title: 'Error',
+        message: 'Failed to capture photo',
+        variant: 'error',
+      });
       return null;
     }
   };
@@ -61,7 +71,11 @@ export const useImagePickerModal = () => {
       return null;
     } catch (error) {
       console.error('Gallery error:', error);
-      Alert.alert('Error', 'Failed to select photo');
+      showAlert({
+        title: 'Error',
+        message: 'Failed to select photo',
+        variant: 'error',
+      });
       return null;
     }
   };

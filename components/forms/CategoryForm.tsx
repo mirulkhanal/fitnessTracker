@@ -2,9 +2,11 @@ import { FitnessIconPicker } from '@/components/icons/FitnessIconPicker';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ThemedText } from '@/components/ui/themed-text';
+import { CategoryColorPalette } from '@/constants/theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { CreateCategoryRequest } from '@/types/category.types';
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 interface CategoryFormProps {
   onSubmit: (request: CreateCategoryRequest) => void;
@@ -23,6 +25,7 @@ export function CategoryForm({
   initialIcon = 'photo.fill',
   initialColor = '#FF6B6B',
 }: CategoryFormProps) {
+  const { colors } = useTheme();
   const [name, setName] = useState(initialName);
   const [icon, setIcon] = useState(initialIcon);
   const [color, setColor] = useState(initialColor);
@@ -60,16 +63,34 @@ export function CategoryForm({
 
       <FitnessIconPicker
         value={icon}
-        onChange={(id, selectedColor) => {
+        selectedColor={color}
+        onChange={(id) => {
           setIcon(id);
-          if (selectedColor) {
-            setColor(selectedColor);
-          }
         }}
         collapsible={true}
         visibleIcons={4}
         columns={4}
       />
+
+      <View style={styles.colorSection}>
+        <ThemedText style={styles.colorLabel}>Choose Color</ThemedText>
+        <View style={styles.colorGrid}>
+          {CategoryColorPalette.map((paletteColor) => {
+            const isSelected = paletteColor === color;
+            return (
+              <TouchableOpacity
+                key={paletteColor}
+                onPress={() => setColor(paletteColor)}
+                style={[
+                  styles.colorSwatch,
+                  { backgroundColor: paletteColor },
+                  isSelected && { borderColor: colors.accent, borderWidth: 3 },
+                ]}
+              />
+            );
+          })}
+        </View>
+      </View>
 
       <View style={styles.buttons}>
         <Button
@@ -107,5 +128,24 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
+  },
+  colorSection: {
+    marginTop: 20,
+  },
+  colorLabel: {
+    marginBottom: 12,
+    textAlign: 'left',
+  },
+  colorGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
 });

@@ -19,7 +19,6 @@ export function SwipeableCard({
   swipeThreshold = 70,
 }: SwipeableCardProps) {
   const translateX = useSharedValue(0);
-  const [isSwiped, setIsSwiped] = React.useState(false);
 
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
@@ -32,11 +31,9 @@ export function SwipeableCard({
     .onEnd((e) => {
       if (e.translationX < -swipeThreshold / 2) {
         translateX.value = withSpring(-swipeThreshold);
-        setIsSwiped(true);
         onSwipeOpen?.();
       } else {
         translateX.value = withSpring(0);
-        setIsSwiped(false);
         onSwipeClose?.();
       }
     });
@@ -75,4 +72,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-

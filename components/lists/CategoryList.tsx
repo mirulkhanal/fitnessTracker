@@ -30,6 +30,7 @@ export function CategoryList({
   const categoriesWithPhotos = categories.filter(cat => cat.photoCount > 0);
   const swipeableRefs = useRef<Map<string, RefObject<Swipeable>>>(new Map());
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
+  const { colors } = useTheme();
 
   // Initialize refs for each category
   React.useEffect(() => {
@@ -70,8 +71,6 @@ export function CategoryList({
   }
 
   if (categories.length === 0) {
-    const { colors } = useTheme();
-    
     return (
       <View style={styles.emptyContainer}>
         <View style={[styles.emptyCard, { backgroundColor: colors.cardBackground }]}>

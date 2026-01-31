@@ -2,13 +2,14 @@ import { fitnessIconIds } from '@/components/icons/custom-icons';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useTheme } from '@/contexts/ThemeContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 interface FitnessIconPickerProps {
   value?: string;
-  onChange: (iconId: string, color?: string) => void;
-  onColorChange?: (color: string) => void; // Optional callback for color updates
+  selectedColor?: string;
+  onChange: (iconId: string) => void;
+  onToggleExpand?: (expanded: boolean) => void;
   columns?: number;
   itemSize?: number;
   icons?: string[]; // allow custom subset
@@ -16,17 +17,11 @@ interface FitnessIconPickerProps {
   visibleIcons?: number; // number of icons to show when collapsed
 }
 
-function getRandomColor() {
-  const palette = [
-    '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#22C55E', '#06B6D4',
-  ];
-  return palette[Math.floor(Math.random() * palette.length)];
-}
-
 export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
   value,
+  selectedColor,
   onChange,
-  onColorChange,
+  onToggleExpand,
   columns = 5,
   itemSize = 56,
   icons = fitnessIconIds,
@@ -36,14 +31,6 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
   const { colors } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   
-  const iconBgMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    icons.forEach((id) => {
-      map[id] = getRandomColor();
-    });
-    return map;
-  }, [icons]);
-
   const visibleData = collapsible && !isExpanded 
     ? icons.slice(0, visibleIcons)
     : icons;
@@ -51,12 +38,11 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
   const renderIcon = (item: string) => {
     const selected = value === item;
     const handlePress = () => {
-      const color = iconBgMap[item];
-      onChange(item, color);
-      if (onColorChange) {
-        onColorChange(color);
-      }
+      onChange(item);
     };
+    const activeColor = selectedColor || colors.accent;
+    const iconColor = selected ? '#FFFFFF' : colors.icon;
+    const iconBackground = selected ? activeColor : colors.cardBackground;
     
     const tile = (
       <TouchableOpacity
@@ -78,13 +64,15 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
             width: itemSize - 12,
             height: itemSize - 12,
             borderRadius: 10,
-            backgroundColor: iconBgMap[item],
+            backgroundColor: iconBackground,
+            borderWidth: 1,
+            borderColor: colors.border,
             alignItems: 'center',
             justifyContent: 'center',
           }}
           onPress={handlePress}
         >
-          <IconSymbol name={item as any} size={34} color={'#FFFFFF'} />
+          <IconSymbol name={item as any} size={34} color={iconColor} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
@@ -94,7 +82,7 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
           padding: 2,
           borderRadius: 14,
           borderWidth: 2,
-          borderColor: colors.accent,
+          borderColor: activeColor,
         }}>
           {tile}
         </View> 
@@ -104,9 +92,9 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
   };
 
   // Create rows from the visible data, padding each row to exactly `columns` items
-  const rows: Array<Array<string | null>> = [];
+  const rows: (string | null)[][] = [];
   for (let i = 0; i < visibleData.length; i += columns) {
-    const row: Array<string | null> = visibleData.slice(i, i + columns);
+    const row: (string | null)[] = visibleData.slice(i, i + columns);
     // Pad row with nulls to ensure consistent column count
     while (row.length < columns) {
       row.push(null);
@@ -123,7 +111,13 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
       ))}
       {collapsible && (
         <TouchableOpacity
-          onPress={() => setIsExpanded(!isExpanded)}
+          onPress={() => {
+            setIsExpanded((prev) => {
+              const next = !prev;
+              onToggleExpand?.(next);
+              return next;
+            });
+          }}
           style={styles.expandButton}
           activeOpacity={0.7}
         >
@@ -141,13 +135,13 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     gap: 12,
     marginBottom: 12,
   },
   item: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 8,
   },
   expandButton: {
     alignItems: 'center',
@@ -155,5 +149,3 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
-
-

@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.meerule.FitnessTracker"
     },
     "web": {
       "output": "static",
@@ -27,6 +28,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-web-browser",
+        {
+          "experimentalLauncherActivity": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -44,6 +51,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "02087f60-dc6c-4250-8815-980529edc4c9"
+      }
     }
   }
 }

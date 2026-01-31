@@ -10,14 +10,14 @@ import Animated, {
     withTiming
 } from 'react-native-reanimated';
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const { height: screenHeight } = Dimensions.get('window');
 
 interface AnimatedModalProps {
   visible: boolean;
   onClose: () => void;
   title: string;
   subtitle: string;
-  options: Array<{
+  options: {
     id: string;
     title: string;
     description: string;
@@ -25,7 +25,7 @@ interface AnimatedModalProps {
     iconColor: string;
     backgroundColor: string;
     onPress: () => void;
-  }>;
+  }[];
   cancelText?: string;
 }
 
@@ -72,7 +72,7 @@ export const AnimatedModal: React.FC<AnimatedModalProps> = ({
       opacity.value = withTiming(0, { duration: 150 });
       overlayOpacity.value = withTiming(0, { duration: 150 });
     }
-  }, [visible]);
+  }, [opacity, overlayOpacity, scale, translateY, visible]);
 
   const animatedModalStyle = useAnimatedStyle(() => ({
     transform: [
@@ -222,4 +222,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

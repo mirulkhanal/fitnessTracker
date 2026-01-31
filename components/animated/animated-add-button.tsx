@@ -3,15 +3,13 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import React, { useEffect } from 'react';
-import { Dimensions, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
     withDelay,
     withSpring
 } from 'react-native-reanimated';
-
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 interface AnimatedAddButtonProps {
   onPress: () => void;
@@ -43,7 +41,7 @@ export const AnimatedAddButton: React.FC<AnimatedAddButtonProps> = ({
       stiffness: 150,
       mass: 1,
     }));
-  }, []);
+  }, [scale]);
 
   const handlePressIn = () => {
     scale.value = withSpring(pressScale, {

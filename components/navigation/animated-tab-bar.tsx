@@ -23,7 +23,7 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
       stiffness: 200,
       mass: 1,
     });
-  }, [state.index, tabWidth]);
+  }, [indicatorPosition, state.index, tabWidth]);
 
   const animatedIndicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicatorPosition.value }],

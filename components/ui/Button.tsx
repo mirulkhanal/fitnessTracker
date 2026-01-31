@@ -1,5 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/ui/themed-text';
+import { useTheme } from '@/contexts/ThemeContext';
 import { ButtonSize, ButtonVariant, HapticType } from '@/types/common.types';
 import React from 'react';
 import { TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
@@ -33,6 +34,8 @@ export function Button({
   hapticType = 'light',
   pressScale = 0.95,
 }: ButtonProps) {
+  const { colors } = useTheme();
+
   const getButtonStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
@@ -49,11 +52,11 @@ export function Button({
     };
 
     const variantStyles: Record<ButtonVariant, ViewStyle> = {
-      primary: { backgroundColor: '#4CAF50' },
-      secondary: { backgroundColor: '#2196F3' },
-      destructive: { backgroundColor: '#F44336' },
+      primary: { backgroundColor: colors.accent },
+      secondary: { backgroundColor: colors.purpleAccent },
+      destructive: { backgroundColor: colors.error },
       ghost: { backgroundColor: 'transparent' },
-      outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#E0E0E0' },
+      outline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
     };
 
     return {
@@ -78,8 +81,8 @@ export function Button({
       primary: { color: 'white' },
       secondary: { color: 'white' },
       destructive: { color: 'white' },
-      ghost: { color: '#333' },
-      outline: { color: '#333' },
+      ghost: { color: colors.text },
+      outline: { color: colors.text },
     };
 
     return {

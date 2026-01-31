@@ -1,5 +1,3 @@
-import { localStorageService } from './local-storage.service';
-
 class AppService {
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
@@ -18,10 +16,6 @@ class AppService {
   private async _doInitialize(): Promise<void> {
     try {
       console.log('Initializing FitTrack Progress app...');
-      
-      // Initialize local storage
-      await localStorageService.init();
-      
       this.isInitialized = true;
       console.log('App initialized successfully');
     } catch (error) {

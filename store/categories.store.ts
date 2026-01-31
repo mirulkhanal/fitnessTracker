@@ -1,5 +1,8 @@
+import { categoriesService } from '@/services/categories.service';
+import { photosService } from '@/services/photos.service';
 import { Category, CategoryStats, CreateCategoryRequest } from '@/types/category.types';
 import { LoadingState } from '@/types/common.types';
+import { ProgressImage } from '@/types/photo.types';
 import { create } from 'zustand';
 
 interface CategoriesStore extends LoadingState {
@@ -9,7 +12,7 @@ interface CategoriesStore extends LoadingState {
   // Actions
   loadCategories: () => Promise<void>;
   loadCategoryStats: () => Promise<void>;
-  createCategory: (request: CreateCategoryRequest) => Promise<void>;
+  createCategory: (request: CreateCategoryRequest) => Promise<Category>;
   deleteCategory: (id: string) => Promise<void>;
   updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
   
@@ -28,8 +31,7 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
   loadCategories: async () => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      const categories = await localStorageService.getAllCategories();
+      const categories = await categoriesService.listCategories();
       set({ categories, loading: false });
     } catch (error) {
       set({ 
@@ -42,47 +44,20 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
   loadCategoryStats: async () => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      const [allImages, customCategories] = await Promise.all([
-        localStorageService.getProgressImages(),
-        localStorageService.getCustomCategories(), // Only get custom categories
-      ]);
+      let categories = get().categories;
+      if (categories.length === 0) {
+        categories = await categoriesService.listCategories();
+        set({ categories });
+      }
+      let allImages: ProgressImage[] = [];
+      try {
+        allImages = await photosService.listPhotos();
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : 'Failed to load photos' });
+      }
       
-      // Get all unique category IDs from images
-      const usedCategoryIds = new Set<string>();
-      allImages.forEach(img => {
-        const legacyImg = img as any;
-        if (legacyImg.categories && Array.isArray(legacyImg.categories)) {
-          legacyImg.categories.forEach((id: string) => usedCategoryIds.add(id));
-        } else if (legacyImg.category) {
-          usedCategoryIds.add(legacyImg.category);
-        }
-      });
-
-      // Get default categories that are actually used
-      const defaultCategories = [
-        { id: 'default', name: 'Default', color: '#6B7280', icon: 'folder.fill' },
-        { id: 'full-body', name: 'Full Body', color: '#4CAF50', icon: 'person.fill' },
-        { id: 'abs', name: 'Abs', color: '#2196F3', icon: 'rectangle.fill' },
-        { id: 'arms', name: 'Arms', color: '#FF9800', icon: 'hand.raised.fill' },
-        { id: 'legs', name: 'Legs', color: '#9C27B0', icon: 'figure.walk' },
-        { id: 'chest', name: 'Chest', color: '#F44336', icon: 'heart.fill' },
-        { id: 'back', name: 'Back', color: '#607D8B', icon: 'figure.stand' },
-      ].filter(cat => usedCategoryIds.has(cat.id) || cat.id === 'default');
-
-      // Combine used default categories with custom categories
-      const allCategories = [...defaultCategories, ...customCategories];
-      
-      const stats: CategoryStats[] = allCategories.map(category => {
-        const categoryImages = allImages.filter(img => {
-          const legacyImg = img as any;
-          if (legacyImg.categories && Array.isArray(legacyImg.categories)) {
-            return legacyImg.categories.includes(category.id);
-          } else if (legacyImg.category) {
-            return legacyImg.category === category.id;
-          }
-          return false;
-        });
+      const stats: CategoryStats[] = categories.map(category => {
+        const categoryImages = allImages.filter(img => img.categories.includes(category.id));
         
         const lastPhotoDate = categoryImages.length > 0 
           ? Math.max(...categoryImages.map(img => img.timestamp))
@@ -107,18 +82,20 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
   createCategory: async (request: CreateCategoryRequest) => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      const newCategory: Category = {
-        id: `custom_${Date.now()}`,
-        name: request.name.trim(),
-        color: request.color || '#6C7B7F',
-        icon: request.icon,
-      };
-
-      await localStorageService.saveCustomCategory(newCategory);
+      const newCategory = await categoriesService.createCategory(request);
       
       set(state => ({
         categories: [...state.categories, newCategory],
+        categoryStats: state.categoryStats.some(stat => stat.id === newCategory.id)
+          ? state.categoryStats
+          : [
+              ...state.categoryStats,
+              {
+                ...newCategory,
+                photoCount: 0,
+                lastPhotoDate: undefined,
+              },
+            ],
         loading: false
       }));
       
@@ -129,19 +106,22 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
       const { useStatsStore } = await import('@/store/stats.store');
       const statsStore = useStatsStore.getState();
       await statsStore.loadStats();
+      return newCategory;
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create category';
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to create category',
+        error: message,
         loading: false 
       });
+      throw error;
     }
   },
 
   deleteCategory: async (id: string) => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      await localStorageService.deleteCategory(id);
+      await categoriesService.deleteCategory(id);
+      await photosService.removeCategoryFromPhotos(id);
       
       set(state => ({
         categories: state.categories.filter(cat => cat.id !== id),
@@ -157,34 +137,36 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
       const statsStore = useStatsStore.getState();
       await statsStore.loadStats();
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete category';
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to delete category',
+        error: message,
         loading: false 
       });
+      throw error;
     }
   },
 
   updateCategory: async (id: string, updates: Partial<Category>) => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      await localStorageService.updateCategory(id, updates);
+      const updatedCategory = await categoriesService.updateCategory(id, updates);
       
       set(state => ({
         categories: state.categories.map(cat => 
-          cat.id === id ? { ...cat, ...updates } : cat
+          cat.id === id ? updatedCategory : cat
         ),
         loading: false
       }));
       
       // Refresh stats after updating
       await get().loadCategoryStats();
-      get().loadStats();
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update category';
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to update category',
+        error: message,
         loading: false 
       });
+      throw error;
     }
   },
 

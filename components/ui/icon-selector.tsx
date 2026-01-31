@@ -1,6 +1,5 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/ui/themed-text';
-import { useTheme } from '@/contexts/ThemeContext';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -38,7 +37,6 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
   title = 'Choose Icon:',
   selectedColor
 }) => {
-  const { colors } = useTheme();
   const [iconColorMap, setIconColorMap] = useState<Record<string, string>>({});
 
   // Generate random colors for all icons when component mounts

@@ -1,12 +1,30 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import React from 'react';
 
 import { AnimatedTabBar } from '@/components/navigation/animated-tab-bar';
+import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useErrorAlert } from '@/hooks/use-error-alert';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { session, error, errorTitle, clearError, sessionReady } = useAuthStore();
+
+  useErrorAlert({
+    title: errorTitle ?? 'Auth error',
+    message: error,
+    onDismiss: clearError,
+  });
+
+  if (!sessionReady) {
+    return <ScreenLoading text="Loading..." />;
+  }
+
+  if (!session) {
+    return <Redirect href="/sign-in" />;
+  }
 
   return (
     <Tabs
@@ -33,7 +51,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="settings"
         options={{
           title: 'Settings',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="gear" color={color} />,

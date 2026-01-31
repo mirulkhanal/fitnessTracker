@@ -1,5 +1,6 @@
-import { ProgressStats } from '@/services/local-storage.service';
+import { statsService } from '@/services/stats.service';
 import { LoadingState } from '@/types/common.types';
+import { ProgressStats } from '@/types/progress.interface';
 import { create } from 'zustand';
 
 interface StatsStore extends LoadingState {
@@ -7,7 +8,6 @@ interface StatsStore extends LoadingState {
   
   // Actions
   loadStats: () => Promise<void>;
-  calculateValidStats: (validPhotos: any[]) => Promise<void>;
   refreshStats: () => Promise<void>;
 }
 
@@ -22,34 +22,12 @@ export const useStatsStore = create<StatsStore>((set, get) => ({
   loadStats: async () => {
     set({ loading: true, error: null });
     try {
-      const { localStorageService } = await import('@/services/local-storage.service');
-      const statsData = await localStorageService.getStats();
+      const statsData = await statsService.getStats();
       set({ stats: statsData, loading: false });
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to load stats',
         loading: false 
-      });
-    }
-  },
-
-  calculateValidStats: async (validPhotos: any[]) => {
-    try {
-      // Get stats from localStorage service (which uses streak tracking)
-      const { localStorageService } = await import('@/services/local-storage.service');
-      const statsData = await localStorageService.getStats();
-      
-      // Update only the totalPhotos count based on valid photos
-      // Keep the streak and lastPhotoDate from localStorage service
-      const validStats = {
-        ...statsData,
-        totalPhotos: validPhotos.length,
-      };
-      
-      set({ stats: validStats });
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to calculate valid stats'
       });
     }
   },
