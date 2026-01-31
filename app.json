@@ -60,6 +60,8 @@
     },
     "extra": {
       "router": {},
+      "supabaseUrl":"https://vuwyivjgposduzujleus.supabase.co",
+      "supabaseKey":"sb_publishable_xuKWUGRWSdYhEsS1LeUGBw_G2KCfQYQ",
       "eas": {
         "projectId": "02087f60-dc6c-4250-8815-980529edc4c9"
       }

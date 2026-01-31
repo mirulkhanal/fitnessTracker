@@ -1,15 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import Constants from 'expo-constants';
 import 'react-native-url-polyfill/auto';
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL
-const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+const url =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ?? Constants.expoConfig?.extra?.supabaseUrl;
+const key =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? Constants.expoConfig?.extra?.supabaseKey;
 
-if (!url || !key) {
-  throw new Error('Missing Supabase configuration');
-}
+export const supabaseConfigured = Boolean(url && key);
+const fallbackUrl = url ?? 'https://invalid.supabase.co';
+const fallbackKey = key ?? 'invalid-anon-key';
 
-export const supabase = createClient(url, key, {
+export const supabase = createClient(fallbackUrl, fallbackKey, {
   auth: {
     flowType: 'implicit',
     storage: AsyncStorage,

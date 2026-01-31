@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { create } from 'zustand';
 
 import { authService, type OAuthProvider } from '@/services/auth.service';
+import { supabaseConfigured } from '@/services/supabase.client';
 import { LoadingState } from '@/types/common.types';
 
 interface AuthStore extends LoadingState {
@@ -34,6 +35,20 @@ const resolveErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error ? error.message : fallback;
 
 const AUTH_TIMEOUT_MS = 10000;
+
+const ensureSupabaseConfigured = (set: AuthStoreSetter) => {
+  if (supabaseConfigured) {
+    return true;
+  }
+  set({
+    error: 'App configuration missing. Reinstall the app with server settings.',
+    errorTitle: 'Configuration error',
+    loading: false,
+    sessionReady: true,
+    session: null,
+  });
+  return false;
+};
 
 const withTimeout = async <T>(promise: Promise<T>, ms: number, message: string): Promise<T> =>
   new Promise((resolve, reject) => {
@@ -106,6 +121,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
   setError: (error, title = null) => set({ error, errorTitle: title }),
   clearError: () => set({ error: null, errorTitle: null }),
   signInWithEmail: async (email, password) => {
+    if (!ensureSupabaseConfigured(set)) {
+      return false;
+    }
     const normalizedEmail = authService.normalizeEmail(email);
     if (!normalizedEmail || !password) {
       set({
@@ -140,6 +158,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
   signUpWithEmail: async ({ email, password, displayName, avatarUri }) => {
+    if (!ensureSupabaseConfigured(set)) {
+      return false;
+    }
     const normalizedEmail = authService.normalizeEmail(email);
     if (!normalizedEmail || !password) {
       set({
@@ -173,6 +194,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
   startOAuth: async (provider) => {
+    if (!ensureSupabaseConfigured(set)) {
+      return false;
+    }
     set({ loading: true, error: null, errorTitle: null });
     try {
       await WebBrowser.warmUpAsync();
@@ -197,6 +221,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
   processAuthCallbackUrl: async (url) => {
+    if (!ensureSupabaseConfigured(set)) {
+      return { handled: true, ok: false };
+    }
     set({ loading: true, error: null, errorTitle: null });
     try {
       if (url) {
@@ -245,6 +272,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
   handleSessionChange: async (session) => {
+    if (!ensureSupabaseConfigured(set)) {
+      return;
+    }
     set({ loading: true, error: null, errorTitle: null });
     try {
       await applyValidatedSession(session, set, 'Auth error');
@@ -256,6 +286,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
   loadSession: async () => {
+    if (!ensureSupabaseConfigured(set)) {
+      return;
+    }
     set({ loading: true, error: null, errorTitle: null });
     try {
       const { session, error } = await withTimeout(
@@ -277,6 +310,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
   refreshSession: async () => {
+    if (!ensureSupabaseConfigured(set)) {
+      return;
+    }
     try {
       const { session, error } = await authService.getSession();
       if (error) {
@@ -289,6 +325,9 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
   signOut: async () => {
+    if (!ensureSupabaseConfigured(set)) {
+      return false;
+    }
     set({ loading: true, error: null, errorTitle: null });
     try {
       const { error } = await authService.signOut();
