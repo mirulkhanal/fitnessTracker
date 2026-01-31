@@ -14,7 +14,7 @@ const fallbackKey = key ?? 'invalid-anon-key';
 
 export const supabase = createClient(fallbackUrl, fallbackKey, {
   auth: {
-    flowType: 'implicit',
+    flowType: 'pkce',
     storage: AsyncStorage,
     persistSession: true,
     autoRefreshToken: true,

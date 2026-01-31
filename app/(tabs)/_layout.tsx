@@ -1,28 +1,40 @@
 import { Redirect, Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { AnimatedTabBar } from '@/components/navigation/animated-tab-bar';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useErrorAlert } from '@/hooks/use-error-alert';
-import { useAuthStore } from '@/store/auth.store';
+import { supabase } from '@/services/supabase.client';
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const { session, error, errorTitle, clearError, sessionReady } = useAuthStore();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isAuthed, setIsAuthed] = useState(false);
 
-  useErrorAlert({
-    title: errorTitle ?? 'Auth error',
-    message: error,
-    onDismiss: clearError,
-  });
+  useEffect(() => {
+    let active = true;
+    const updateAuthState = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!active) return;
+      setIsAuthed(Boolean(data.user) && !error);
+      setCheckingAuth(false);
+    };
+    updateAuthState();
+    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
+      updateAuthState();
+    });
+    return () => {
+      active = false;
+      authListener?.subscription?.unsubscribe?.();
+    };
+  }, []);
 
-  if (!sessionReady) {
-    return <ScreenLoading text="Loading..." />;
+  if (checkingAuth) {
+    return <ScreenLoading text="Checking account..." />;
   }
 
-  if (!session) {
+  if (!isAuthed) {
     return <Redirect href="/sign-in" />;
   }
 

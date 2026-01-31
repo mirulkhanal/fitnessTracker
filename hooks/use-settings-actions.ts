@@ -1,17 +1,58 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { useAlert } from '@/contexts/AlertContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
-import { useAuthStore } from '@/store/auth.store';
+import { supabase } from '@/services/supabase.client';
+import { useRouter } from 'expo-router';
 
 export const useSettingsActions = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
-  const { session, refreshSession, signOut } = useAuthStore();
   const { showAlert } = useAlert();
+  const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [profile, setProfile] = useState<{
+    displayName?: string;
+    email?: string;
+    userId?: string;
+    avatarUrl?: string | null;
+  }>({
+    displayName: 'Guest',
+    email: 'Not signed in',
+    userId: 'Not available',
+    avatarUrl: null,
+  });
 
-  useRefreshOnFocus(() => refreshSession(), [refreshSession]);
+  useEffect(() => {
+    let active = true;
+    const loadProfile = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!active) return;
+      if (error || !data.user) {
+        setProfile({
+          displayName: 'Guest',
+          email: 'Not signed in',
+          userId: 'Not available',
+          avatarUrl: null,
+        });
+        return;
+      }
+      const user = data.user;
+      const displayName =
+        typeof user.user_metadata?.display_name === 'string' ? user.user_metadata.display_name : undefined;
+      const avatarUrl =
+        typeof user.user_metadata?.avatar_url === 'string' ? user.user_metadata.avatar_url : null;
+      setProfile({
+        displayName: displayName ?? user.email ?? 'Profile',
+        email: user.email ?? 'Not available',
+        userId: user.id,
+        avatarUrl,
+      });
+    };
+    loadProfile();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleExportData = useCallback(() => {
     showAlert({
@@ -51,14 +92,29 @@ export const useSettingsActions = () => {
   }, [showAlert]);
 
   const handleSignOut = useCallback(async () => {
-    await signOut();
-  }, [signOut]);
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      showAlert({
+        title: 'Sign out failed',
+        message: error.message,
+        variant: 'error',
+      });
+      return;
+    }
+    setProfile({
+      displayName: 'Guest',
+      email: 'Not signed in',
+      userId: 'Not available',
+      avatarUrl: null,
+    });
+    router.replace('/sign-in');
+  }, [router, showAlert]);
 
   return {
     colors,
     isDarkMode,
     toggleTheme,
-    session,
+    profile,
     notificationsEnabled,
     setNotificationsEnabled,
     handleExportData,

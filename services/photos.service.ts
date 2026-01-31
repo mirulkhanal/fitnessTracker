@@ -5,7 +5,7 @@ import { Directory, File, Paths, readAsStringAsync } from 'expo-file-system';
 
 interface PhotoRow {
   id: string | number;
-  user_id: string;
+  user_id?: string;
   local_id: string;
   width: number | null;
   height: number | null;
@@ -17,18 +17,6 @@ const PHOTOS_TABLE = 'photo_metadata';
 const ENCRYPTED_DIR = new Directory(Paths.document, 'encrypted-photos');
 const PREVIEW_DIR = new Directory(Paths.cache, 'photo-previews');
 const KEY_FILE = new File(Paths.document, 'photo-key.bin');
-
-const getUserId = async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    throw new Error(error.message);
-  }
-  const userId = data.user?.id;
-  if (!userId) {
-    throw new Error('User not authenticated');
-  }
-  return userId;
-};
 
 const normalizeTimestamp = (value: number | string) => {
   if (typeof value === 'number') {
@@ -214,8 +202,7 @@ const migrateToEncrypted = async (row: PhotoRow) => {
   const { error } = await supabase
     .from(PHOTOS_TABLE)
     .update({ local_id: encryptedFile.uri })
-    .eq('id', normalizePhotoId(row.id))
-    .eq('user_id', row.user_id);
+    .eq('id', normalizePhotoId(row.id));
   if (error) {
     throw new Error(error.message);
   }
@@ -255,11 +242,9 @@ const normalizePhotoId = (value: string | number) => {
 };
 
 const listPhotos = async (categoryId?: string): Promise<ProgressImage[]> => {
-  const userId = await getUserId();
   let query = supabase
     .from(PHOTOS_TABLE)
-    .select('id, local_id, width, height, captured_at, categories, user_id')
-    .eq('user_id', userId)
+    .select('id, local_id, width, height, captured_at, categories')
     .order('captured_at', { ascending: false });
 
   if (categoryId) {
@@ -290,7 +275,6 @@ const savePhoto = async (
   width: number = 0,
   height: number = 0
 ): Promise<ProgressImage> => {
-  const userId = await getUserId();
   const capturedAt = new Date().toISOString();
   const normalizedCategoryIds = normalizeCategoryIds(categories);
   const key = await getOrCreateKey();
@@ -305,7 +289,6 @@ const savePhoto = async (
   }
 
   const payload = {
-    user_id: userId,
     local_id: encryptedFile.uri,
     width,
     height,
@@ -316,7 +299,7 @@ const savePhoto = async (
   const { data, error } = await supabase
     .from(PHOTOS_TABLE)
     .insert(payload)
-    .select('id, local_id, width, height, captured_at, categories, user_id')
+    .select('id, local_id, width, height, captured_at, categories')
     .single();
 
   if (error || !data) {
@@ -328,13 +311,11 @@ const savePhoto = async (
 };
 
 const deletePhoto = async (id: string | number): Promise<void> => {
-  const userId = await getUserId();
   const normalizedPhotoId = normalizePhotoId(id);
   const { data, error } = await supabase
     .from(PHOTOS_TABLE)
-    .select('id, local_id, user_id')
+    .select('id, local_id')
     .eq('id', normalizedPhotoId)
-    .eq('user_id', userId)
     .maybeSingle();
 
   if (error) {
@@ -348,8 +329,7 @@ const deletePhoto = async (id: string | number): Promise<void> => {
   const { error: deleteError } = await supabase
     .from(PHOTOS_TABLE)
     .delete()
-    .eq('id', normalizedPhotoId)
-    .eq('user_id', userId);
+    .eq('id', normalizedPhotoId);
 
   if (deleteError) {
     throw new Error(deleteError.message);
@@ -372,14 +352,12 @@ const deletePhoto = async (id: string | number): Promise<void> => {
 };
 
 const updatePhotoCategories = async (id: string | number, categories: string[]): Promise<void> => {
-  const userId = await getUserId();
   const normalizedCategoryIds = normalizeCategoryIds(categories);
   const normalizedPhotoId = normalizePhotoId(id);
   const { error } = await supabase
     .from(PHOTOS_TABLE)
     .update({ categories: normalizedCategoryIds })
-    .eq('id', normalizedPhotoId)
-    .eq('user_id', userId);
+    .eq('id', normalizedPhotoId);
 
   if (error) {
     throw new Error(error.message);
@@ -387,15 +365,13 @@ const updatePhotoCategories = async (id: string | number, categories: string[]):
 };
 
 const removeCategoryFromPhotos = async (categoryId: string): Promise<void> => {
-  const userId = await getUserId();
   const normalizedCategoryIds = normalizeCategoryIds(categoryId);
   if (normalizedCategoryIds.length === 0) {
     return;
   }
   const { data, error } = await supabase
     .from(PHOTOS_TABLE)
-    .select('id, categories, user_id')
-    .eq('user_id', userId)
+    .select('id, categories')
     .contains('categories', normalizedCategoryIds);
 
   if (error) {

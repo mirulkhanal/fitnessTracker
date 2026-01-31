@@ -1,72 +1,54 @@
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
-import { useErrorAlert } from '@/hooks/use-error-alert';
-import { useAuthStore } from '@/store/auth.store';
+import { supabase } from '@/services/supabase.client';
 import * as Linking from 'expo-linking';
 import { Redirect } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 
 export default function AuthCallbackScreen() {
-  const { session, loading, error, errorTitle, clearError, processAuthCallbackUrl } = useAuthStore();
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-
-  useErrorAlert({
-    title: errorTitle ?? 'Auth error',
-    message: error,
-    onDismiss: clearError,
-  });
+  const [redirectTo, setRedirectTo] = useState<'tabs' | 'sign-in' | null>(null);
 
   useEffect(() => {
     let active = true;
-    let handled = false;
-
-    const handleUrl = async (url: string) => {
-      if (!active || handled) return;
-      const result = await processAuthCallbackUrl(url);
-      if (!active) return;
-      if (result.handled && !result.ok) {
-        setShouldRedirect(true);
-      }
-      if (result.handled && result.ok) {
-        handled = true;
-      }
-    };
-
-    const init = async () => {
-      const url = await Linking.getInitialURL();
+    const handleRedirect = async (url?: string | null) => {
       if (!active) return;
       if (url) {
-        await handleUrl(url);
-        return;
+        const parsed = Linking.parse(url);
+        const code =
+          typeof parsed.queryParams?.code === 'string' ? parsed.queryParams.code : null;
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!active) return;
+          if (error) {
+            setRedirectTo('sign-in');
+            return;
+          }
+        }
       }
-      const result = await processAuthCallbackUrl(null);
+      const { data } = await supabase.auth.getUser();
       if (!active) return;
-      if (result.handled && !result.ok) {
-        setShouldRedirect(true);
-      }
-      if (result.handled && result.ok) {
-        handled = true;
-      }
+      setRedirectTo(data.user ? 'tabs' : 'sign-in');
     };
-
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      handleUrl(url);
-    });
-
+    const init = async () => {
+      const url = await Linking.getInitialURL();
+      await handleRedirect(url);
+    };
     init();
-
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleRedirect(url);
+    });
     return () => {
       active = false;
       subscription.remove();
     };
-  }, [processAuthCallbackUrl]);
+  }, []);
 
-  if (session) {
-    return <Redirect href="/" />;
+  if (redirectTo === 'tabs') {
+    return <Redirect href="/(tabs)" />;
   }
 
-  if (shouldRedirect) {
+  if (redirectTo === 'sign-in') {
     return <Redirect href="/sign-in" />;
   }
 
-  return <ScreenLoading text={loading ? 'Finishing sign in...' : 'Preparing sign in...'} />;
+  return <ScreenLoading text="Preparing sign in..." />;
 }

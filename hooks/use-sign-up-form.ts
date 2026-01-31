@@ -1,15 +1,22 @@
-import { useCallback, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 
 import { useAlert } from '@/contexts/AlertContext';
 import { useErrorAlert } from '@/hooks/use-error-alert';
-import { useAuthStore } from '@/store/auth.store';
+import { getDeepLinkUrl } from '@/services/deep-link.service';
+import { supabase } from '@/services/supabase.client';
 
 export const useSignUpForm = () => {
   const router = useRouter();
   const { showAlert } = useAlert();
-  const { loading, error, errorTitle, clearError, signUpWithEmail } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState<string | null>(null);
+  const clearError = useCallback(() => {
+    setError(null);
+    setErrorTitle(null);
+  }, []);
 
   const [displayName, setDisplayName] = useState('');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
@@ -46,12 +53,35 @@ export const useSignUpForm = () => {
   }, [showAlert]);
 
   const handleEmailSignUp = useCallback(async () => {
-    const success = await signUpWithEmail({ email, password, displayName, avatarUri });
-    if (success) {
-      router.replace('/signup-success');
-      setPassword('');
+    if (!email || !password) {
+      setErrorTitle('Missing details');
+      setError('Enter your email and password to continue.');
+      return;
     }
-  }, [avatarUri, displayName, email, password, router, signUpWithEmail]);
+    setLoading(true);
+    setError(null);
+    setErrorTitle(null);
+    try {
+      const { error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: displayName ? { display_name: displayName } : undefined,
+          emailRedirectTo: getDeepLinkUrl('auth-callback'),
+        },
+      });
+      
+      if (authError) {
+        setErrorTitle('Sign up failed');
+        setError(authError.message);
+        return;
+      }
+      setPassword('');
+      router.replace('/signup-success');
+    } finally {
+      setLoading(false);
+    }
+  }, [displayName, email, password, router]);
 
   return {
     displayName,

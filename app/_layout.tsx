@@ -8,8 +8,6 @@ import 'react-native-reanimated';
 import { AlertProvider } from '@/contexts/AlertContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { appService } from '@/services/app.service';
-import { authService } from '@/services/auth.service';
-import { useAuthStore } from '@/store/auth.store';
 import * as Linking from 'expo-linking';
 
 export const unstable_settings = {
@@ -17,9 +15,6 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
-  const loadSession = useAuthStore((state) => state.loadSession);
-  const handleSessionChange = useAuthStore((state) => state.handleSessionChange);
-
   useEffect(() => {
     // Debug Linking events
     const subscription = Linking.addEventListener('url', ({ url }) => {
@@ -40,26 +35,6 @@ export default function RootLayout() {
     appService.initialize();
   }, []);
 
-  useEffect(() => {
-    let active = true;
-
-    const initAuth = async () => {
-      await loadSession();
-    };
-
-    const { data: subscription } = authService.onAuthStateChange(async (_event, session) => {
-      if (!active) return;
-      await handleSessionChange(session);
-    });
-
-    initAuth();
-
-    return () => {
-      active = false;
-      subscription.subscription.unsubscribe();
-    };
-  }, [handleSessionChange, loadSession]);
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
@@ -76,7 +51,7 @@ function AppContent() {
 
   return (
     <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack initialRouteName="(tabs)">
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen 

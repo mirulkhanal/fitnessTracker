@@ -1,18 +1,6 @@
 import { supabase } from '@/services/supabase.client';
 import { ProgressStats } from '@/types/progress.interface';
 
-const getUserId = async () => {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) {
-    throw new Error(error.message);
-  }
-  const userId = data.user?.id;
-  if (!userId) {
-    throw new Error('User not authenticated');
-  }
-  return userId;
-};
-
 const normalizeTimestamp = (value: number | string) => {
   if (typeof value === 'number') {
     return value;
@@ -55,11 +43,9 @@ const calculateStreakFromDays = (streakDays: string[], startTimestamp: number) =
 };
 
 const getStats = async (): Promise<ProgressStats> => {
-  const userId = await getUserId();
   const { data, error } = await supabase
     .from('photo_metadata')
-    .select('captured_at, user_id')
-    .eq('user_id', userId);
+    .select('captured_at');
 
   if (error) {
     throw new Error(error.message);

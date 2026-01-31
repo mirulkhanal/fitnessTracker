@@ -17,7 +17,7 @@ export default function SettingsScreen() {
     colors,
     isDarkMode,
     toggleTheme,
-    session,
+    profile,
     notificationsEnabled,
     setNotificationsEnabled,
     handleExportData,
@@ -30,7 +30,7 @@ export default function SettingsScreen() {
     <ThemedView style={[styles.container, { backgroundColor: colors.background, shadowOpacity: 0, elevation: 0 }]}>
       <SettingsHeader />
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <ProfileSection session={session} />
+        <ProfileSection profile={profile} />
         <PreferencesSection
           notificationsEnabled={notificationsEnabled}
           onToggleNotifications={setNotificationsEnabled}

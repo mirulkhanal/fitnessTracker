@@ -1,7 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Session } from '@supabase/supabase-js';
 import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Switch, TouchableOpacity, View } from 'react-native';
@@ -48,21 +47,22 @@ export function SettingsHeader() {
 }
 
 interface ProfileSectionProps {
-  session: Session | null;
+  profile: {
+    displayName?: string;
+    email?: string;
+    userId?: string;
+    avatarUrl?: string | null;
+  };
 }
 
-export function ProfileSection({ session }: ProfileSectionProps) {
+export function ProfileSection({ profile }: ProfileSectionProps) {
   const { colors } = useTheme();
-  const userEmail = session?.user?.email ?? 'Not available';
-  const userId = session?.user?.id ?? 'Not available';
+  const userEmail = profile.email ?? 'Not available';
+  const userId = profile.userId ?? 'Not available';
   const displayName =
-    (typeof session?.user?.user_metadata?.display_name === 'string' &&
-      session?.user?.user_metadata?.display_name.trim()) ||
+    (typeof profile.displayName === 'string' && profile.displayName.trim()) ||
     (userEmail !== 'Not available' ? userEmail.split('@')[0] : 'Profile');
-  const avatarUrl =
-    typeof session?.user?.user_metadata?.avatar_url === 'string'
-      ? session?.user?.user_metadata?.avatar_url
-      : null;
+  const avatarUrl = profile.avatarUrl ?? null;
 
   return (
     <View style={styles.profileSection}>
