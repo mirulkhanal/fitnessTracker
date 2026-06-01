@@ -3,6 +3,9 @@ name: Android Release
 on:
   release:
     types: [published]
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
     inputs:
       profile:
@@ -20,6 +23,8 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,7 +77,7 @@ jobs:
 
       - name: Download APK
         run: |
-          VERSION="${{ github.event.release.tag_name || 'manual' }}"
+          VERSION="${{ github.event.release.tag_name || github.ref_name || 'manual' }}"
           pnpm exec eas build:download \
             --id "${{ steps.build.outputs.build_id }}" \
             --output "FitTrack-Progress-${VERSION}.apk"
@@ -85,7 +90,7 @@ jobs:
           fail_on_unmatched_files: true
 
       - name: Upload workflow artifact
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
         uses: actions/upload-artifact@v4
         with:
           name: fittrack-android-apk
