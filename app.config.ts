@@ -26,14 +26,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ...config.android,
     package: 'com.fittrack.progress',
     versionCode: config.android?.versionCode ?? 1,
-    usesCleartextTraffic: allowCleartext,
     adaptiveIcon: {
       backgroundColor: '#051424',
       foregroundImage: './assets/images/android-icon-foreground.png',
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-  },
+    ...(allowCleartext ? { usesCleartextTraffic: true } : {}),
+  } as ExpoConfig['android'],
   plugins: [
     ...(config.plugins ?? []),
     [

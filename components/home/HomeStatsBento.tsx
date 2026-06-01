@@ -28,7 +28,7 @@ export function HomeStatsBento({
         suffix="Days"
         icon="flame.fill"
       />
-      <StatCard label="LAST PHOTO" value={lastPhotoLabel} icon="history" />
+      <StatCard label="LAST PHOTO" value={lastPhotoLabel} icon="clock.fill" />
     </View>
   );
 }
