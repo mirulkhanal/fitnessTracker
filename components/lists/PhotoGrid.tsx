@@ -31,26 +31,28 @@ export function PhotoGrid({
 
   const renderPhotoItem = ({ item }: { item: PhotoItem }) => (
     <View style={styles.photoItem}>
-      <Card 
+      <Card
         variant="elevated"
         padding="none"
         style={{ ...styles.photoCard, backgroundColor: colors.cardBackground }}
-        onPress={() => onPhotoPress?.(item)}
+        onPress={onPhotoPress ? () => onPhotoPress(item) : undefined}
       >
         <Image source={{ uri: item.uri }} style={styles.image} />
-        <View style={[styles.photoFooter, { backgroundColor: colors.cardBackground }] }>
+        <View style={[styles.photoFooter, { backgroundColor: colors.cardBackground }]}>
           <ThemedText style={[styles.photoDate, { color: colors.text }]}>
             {new Date(item.timestamp).toLocaleDateString()}
           </ThemedText>
-          {onDeletePhoto && (
+          {onDeletePhoto ? (
             <TouchableOpacity
               style={[styles.deletePill, { backgroundColor: colors.pinkAccent + '20' }]}
-              onPress={() => onDeletePhoto(item.id)}
+              onPress={() => onDeletePhoto(String(item.id))}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Delete photo"
             >
               <IconSymbol name="trash" size={16} color={colors.pinkAccent} />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </Card>
     </View>

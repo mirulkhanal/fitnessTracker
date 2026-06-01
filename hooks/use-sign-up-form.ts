@@ -2,13 +2,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
+import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
 import { useErrorAlert } from '@/hooks/use-error-alert';
-import { getDeepLinkUrl } from '@/services/deep-link.service';
-import { supabase } from '@/services/supabase.client';
+import { pendingProfileService } from '@/services/pending-profile.service';
+import { WrAuthRequestError, wrAuthClient } from '@/services/wrauth.client';
+import { wrauthConfigured } from '@/services/wrauth.config';
 
 export const useSignUpForm = () => {
   const router = useRouter();
+  const { applyLoginResult } = useAuth();
   const { showAlert } = useAlert();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +56,11 @@ export const useSignUpForm = () => {
   }, [showAlert]);
 
   const handleEmailSignUp = useCallback(async () => {
+    if (!wrauthConfigured) {
+      setErrorTitle('Auth not configured');
+      setError('Set EXPO_PUBLIC_WRAUTH_API_URL and EXPO_PUBLIC_WRAUTH_APP_KEY in your environment.');
+      return;
+    }
     if (!email || !password) {
       setErrorTitle('Missing details');
       setError('Enter your email and password to continue.');
@@ -62,26 +70,68 @@ export const useSignUpForm = () => {
     setError(null);
     setErrorTitle(null);
     try {
-      const { error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: displayName ? { display_name: displayName } : undefined,
-          emailRedirectTo: getDeepLinkUrl('auth-callback'),
-        },
-      });
-      
-      if (authError) {
-        setErrorTitle('Sign up failed');
-        setError(authError.message);
+      const profile =
+        displayName.trim() || avatarUri
+          ? {
+              ...(displayName.trim() ? { display_name: displayName.trim() } : {}),
+              ...(avatarUri ? { avatar_url: avatarUri } : {}),
+            }
+          : undefined;
+
+      const registerResult = await wrAuthClient.register(email.trim(), password, profile);
+
+      if (profile) {
+        await pendingProfileService.save(email.trim(), profile);
+      }
+
+      if (registerResult.verification_required) {
+        setPassword('');
+        if (registerResult.verification_email_sent === false) {
+          showAlert({
+            title: 'Account created',
+            message:
+              'Your account was created, but the verification email could not be sent. Fix SMTP in wrAuth admin, then tap Resend on the next screen.',
+            variant: 'warning',
+          });
+        }
+        router.replace({ pathname: '/signup-success', params: { email: email.trim() } });
+        return;
+      }
+
+      const loginResult = await wrAuthClient.login(email.trim(), password);
+      const outcome = await applyLoginResult(loginResult, profile);
+      if (outcome !== 'ok') {
+        setErrorTitle('Sign up complete');
+        setError('Account created. Sign in to finish setup.');
+        router.replace('/sign-in');
         return;
       }
       setPassword('');
-      router.replace('/signup-success');
+      router.replace('/(tabs)');
+    } catch (authError) {
+      if (__DEV__) {
+        console.warn('[signup] failed', authError);
+      }
+      setErrorTitle('Sign up failed');
+      if (authError instanceof WrAuthRequestError) {
+        if (authError.code === 'EMAIL_ALREADY_EXISTS') {
+          setError('An account with this email already exists.');
+        } else if (authError.code === 'SMTP_CONFIG_REQUIRED' || authError.code === 'SMTP_DELIVERY_FAILED') {
+          setError(
+            `${authError.message} Update SMTP in wrAuth admin (use a Gmail App Password and a From address your provider allows).`
+          );
+        } else {
+          setError(authError.message);
+        }
+      } else if (authError instanceof Error && authError.message) {
+        setError(authError.message);
+      } else {
+        setError('Unable to create your account. Check your network and wrAuth API URL.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [displayName, email, password, router]);
+  }, [applyLoginResult, avatarUri, displayName, email, password, router, showAlert]);
 
   return {
     displayName,

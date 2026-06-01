@@ -1,58 +1,128 @@
-import { useCallback, useEffect, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAlert } from '@/contexts/AlertContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { supabase } from '@/services/supabase.client';
+import { WrAuthRequestError } from '@/services/wrauth.client';
 import { useRouter } from 'expo-router';
 
 export const useSettingsActions = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
   const { showAlert } = useAlert();
+  const { session, signOut, updateProfile } = useAuth();
   const router = useRouter();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [profile, setProfile] = useState<{
-    displayName?: string;
-    email?: string;
-    userId?: string;
-    avatarUrl?: string | null;
-  }>({
-    displayName: 'Guest',
-    email: 'Not signed in',
-    userId: 'Not available',
-    avatarUrl: null,
-  });
+  const [displayNameDraft, setDisplayNameDraft] = useState('');
+  const [bioDraft, setBioDraft] = useState('');
+  const [avatarUriDraft, setAvatarUriDraft] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const signedIn = Boolean(session?.user);
+  const email = session?.user?.email ?? 'Not signed in';
 
   useEffect(() => {
-    let active = true;
-    const loadProfile = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!active) return;
-      if (error || !data.user) {
-        setProfile({
-          displayName: 'Guest',
-          email: 'Not signed in',
-          userId: 'Not available',
-          avatarUrl: null,
-        });
-        return;
-      }
-      const user = data.user;
-      const displayName =
-        typeof user.user_metadata?.display_name === 'string' ? user.user_metadata.display_name : undefined;
-      const avatarUrl =
-        typeof user.user_metadata?.avatar_url === 'string' ? user.user_metadata.avatar_url : null;
-      setProfile({
-        displayName: displayName ?? user.email ?? 'Profile',
-        email: user.email ?? 'Not available',
-        userId: user.id,
-        avatarUrl,
+    if (!session?.user) {
+      setDisplayNameDraft('');
+      setBioDraft('');
+      setAvatarUriDraft(null);
+      return;
+    }
+    setDisplayNameDraft(session.display_name ?? '');
+    setBioDraft(session.bio ?? '');
+    setAvatarUriDraft(session.avatar_url ?? null);
+  }, [session]);
+
+  const canSaveProfile = useMemo(() => {
+    if (!signedIn || !session) {
+      return false;
+    }
+    const baselineName = session.display_name ?? '';
+    const baselineBio = session.bio ?? '';
+    const baselineAvatar = session.avatar_url ?? null;
+    return (
+      displayNameDraft.trim() !== baselineName ||
+      bioDraft !== baselineBio ||
+      avatarUriDraft !== baselineAvatar
+    );
+  }, [avatarUriDraft, bioDraft, displayNameDraft, session, signedIn]);
+
+  const handlePickAvatar = useCallback(async () => {
+    if (!signedIn) {
+      return;
+    }
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      showAlert({
+        title: 'Permission needed',
+        message: 'Photo library access is required to select a picture.',
+        variant: 'warning',
       });
-    };
-    loadProfile();
-    return () => {
-      active = false;
-    };
-  }, []);
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets.length > 0) {
+      setAvatarUriDraft(result.assets[0].uri);
+    }
+  }, [showAlert, signedIn]);
+
+  const handleSaveProfile = useCallback(async () => {
+    if (!signedIn || !canSaveProfile) {
+      return;
+    }
+    const trimmedName = displayNameDraft.trim();
+    if (!trimmedName) {
+      showAlert({
+        title: 'Display name required',
+        message: 'Enter a display name before saving.',
+        variant: 'warning',
+      });
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      await updateProfile({
+        display_name: trimmedName,
+        bio: bioDraft.trim() || null,
+        avatar_url: avatarUriDraft,
+      });
+      showAlert({
+        title: 'Profile saved',
+        message: 'Your profile was updated.',
+        variant: 'success',
+      });
+    } catch (error) {
+      const message =
+        error instanceof WrAuthRequestError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : 'Unable to save your profile.';
+      showAlert({
+        title: 'Save failed',
+        message,
+        variant: 'error',
+      });
+    } finally {
+      setSavingProfile(false);
+    }
+  }, [
+    avatarUriDraft,
+    bioDraft,
+    canSaveProfile,
+    displayNameDraft,
+    showAlert,
+    signedIn,
+    updateProfile,
+  ]);
 
   const handleExportData = useCallback(() => {
     showAlert({
@@ -86,35 +156,40 @@ export const useSettingsActions = () => {
   const handlePrivacy = useCallback(() => {
     showAlert({
       title: 'Privacy Policy',
-      message: 'Your photos are stored securely in the cloud linked to your account. We do not collect or share any personal data.',
+      message:
+        'Progress photos are encrypted on this device. Categories and photo records sync to your wrAuth account. Optional fingerprint sign-in stores a device-protected refresh token only on this phone.',
       variant: 'info',
     });
   }, [showAlert]);
 
   const handleSignOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
+    try {
+      await signOut();
+      router.replace('/sign-in');
+    } catch (error) {
       showAlert({
         title: 'Sign out failed',
-        message: error.message,
+        message: error instanceof Error ? error.message : 'Unable to sign out.',
         variant: 'error',
       });
-      return;
     }
-    setProfile({
-      displayName: 'Guest',
-      email: 'Not signed in',
-      userId: 'Not available',
-      avatarUrl: null,
-    });
-    router.replace('/sign-in');
-  }, [router, showAlert]);
+  }, [router, showAlert, signOut]);
 
   return {
     colors,
     isDarkMode,
     toggleTheme,
-    profile,
+    signedIn,
+    email,
+    displayNameDraft,
+    bioDraft,
+    avatarUriDraft,
+    savingProfile,
+    canSaveProfile,
+    setDisplayNameDraft,
+    setBioDraft,
+    handlePickAvatar,
+    handleSaveProfile,
     notificationsEnabled,
     setNotificationsEnabled,
     handleExportData,

@@ -44,11 +44,8 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
   loadCategoryStats: async () => {
     set({ loading: true, error: null });
     try {
-      let categories = get().categories;
-      if (categories.length === 0) {
-        categories = await categoriesService.listCategories();
-        set({ categories });
-      }
+      const categories = await categoriesService.listCategories();
+      set({ categories });
       let allImages: ProgressImage[] = [];
       try {
         allImages = await photosService.listPhotos();

@@ -8,23 +8,39 @@ interface SignInEmailFormProps {
   email: string;
   password: string;
   loading: boolean;
+  biometricEnabled?: boolean;
+  biometricLabel?: string;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSubmit: () => void;
+  onBiometricSignIn?: () => void;
   onCreateAccount: () => void;
+  onForgotPassword: () => void;
 }
 
 export function SignInEmailForm({
   email,
   password,
   loading,
+  biometricEnabled = false,
+  biometricLabel = 'Biometrics',
   onEmailChange,
   onPasswordChange,
   onSubmit,
+  onBiometricSignIn,
   onCreateAccount,
+  onForgotPassword,
 }: SignInEmailFormProps) {
   return (
     <View style={styles.formSection}>
+      {biometricEnabled && onBiometricSignIn ? (
+        <Button
+          title={`Sign in with ${biometricLabel}`}
+          onPress={onBiometricSignIn}
+          loading={loading}
+          variant="outline"
+        />
+      ) : null}
       <Input
         label="Email"
         value={email}
@@ -40,7 +56,8 @@ export function SignInEmailForm({
         secureTextEntry
       />
       <View style={styles.emailButtons}>
-        <Button title="Sign in with Email" onPress={onSubmit} loading={loading} />
+        <Button title="Sign in" onPress={onSubmit} loading={loading} />
+        <Button title="Forgot password?" onPress={onForgotPassword} variant="outline" />
         <Button title="Create account" onPress={onCreateAccount} variant="outline" loading={loading} />
       </View>
     </View>

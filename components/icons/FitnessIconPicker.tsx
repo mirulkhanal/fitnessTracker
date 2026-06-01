@@ -1,5 +1,6 @@
 import { fitnessIconIds } from '@/components/icons/custom-icons';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { FitTrackColors } from '@/constants/fittrack-theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import React, { useState } from 'react';
@@ -12,9 +13,10 @@ interface FitnessIconPickerProps {
   onToggleExpand?: (expanded: boolean) => void;
   columns?: number;
   itemSize?: number;
-  icons?: string[]; // allow custom subset
+  icons?: string[];
   collapsible?: boolean;
-  visibleIcons?: number; // number of icons to show when collapsed
+  visibleIcons?: number;
+  variant?: 'default' | 'fittrack';
 }
 
 export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
@@ -27,23 +29,48 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
   icons = fitnessIconIds,
   collapsible = false,
   visibleIcons = 5,
+  variant = 'default',
 }) => {
   const { colors } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
-  
-  const visibleData = collapsible && !isExpanded 
-    ? icons.slice(0, visibleIcons)
-    : icons;
+  const isFitTrack = variant === 'fittrack';
+
+  const visibleData = collapsible && !isExpanded ? icons.slice(0, visibleIcons) : icons;
 
   const renderIcon = (item: string) => {
     const selected = value === item;
     const handlePress = () => {
       onChange(item);
     };
+
+    if (isFitTrack) {
+      return (
+        <TouchableOpacity
+          key={item}
+          onPress={handlePress}
+          activeOpacity={0.85}
+          style={[
+            styles.fittrackTile,
+            {
+              width: itemSize,
+              height: itemSize,
+            },
+            selected && styles.fittrackTileSelected,
+          ]}
+        >
+          <IconSymbol
+            name={item as React.ComponentProps<typeof IconSymbol>['name']}
+            size={28}
+            color={selected ? FitTrackColors.primaryContainer : FitTrackColors.onSurfaceVariant}
+          />
+        </TouchableOpacity>
+      );
+    }
+
     const activeColor = selectedColor || colors.accent;
     const iconColor = selected ? '#FFFFFF' : colors.icon;
     const iconBackground = selected ? activeColor : colors.cardBackground;
-    
+
     const tile = (
       <TouchableOpacity
         onPress={handlePress}
@@ -72,20 +99,22 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
           }}
           onPress={handlePress}
         >
-          <IconSymbol name={item as any} size={34} color={iconColor} />
+          <IconSymbol name={item as React.ComponentProps<typeof IconSymbol>['name']} size={34} color={iconColor} />
         </TouchableOpacity>
       </TouchableOpacity>
     );
     if (selected) {
       return (
-        <View style={{
-          padding: 2,
-          borderRadius: 14,
-          borderWidth: 2,
-          borderColor: activeColor,
-        }}>
+        <View
+          style={{
+            padding: 2,
+            borderRadius: 14,
+            borderWidth: 2,
+            borderColor: activeColor,
+          }}
+        >
           {tile}
-        </View> 
+        </View>
       );
     }
     return tile;
@@ -122,9 +151,9 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
           activeOpacity={0.7}
         >
           <MaterialIcons
-            name={isExpanded ? "expand-less" : "expand-more"}
-            size={24}
-            color={colors.accent}
+            name={isExpanded ? 'expand-less' : 'expand-more'}
+            size={isFitTrack ? 20 : 24}
+            color={isFitTrack ? FitTrackColors.onSurfaceVariant : colors.accent}
           />
         </TouchableOpacity>
       )}
@@ -143,9 +172,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  fittrackTile: {
+    borderRadius: 12,
+    backgroundColor: 'rgba(28, 43, 60, 0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fittrackTileSelected: {
+    backgroundColor: FitTrackColors.primaryContainerMuted,
+    borderColor: FitTrackColors.primaryContainerBorder,
+    shadowColor: FitTrackColors.primaryContainer,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   expandButton: {
     alignItems: 'center',
-    padding: 12,
-    marginTop: 8,
+    padding: 8,
+    marginTop: 4,
   },
 });

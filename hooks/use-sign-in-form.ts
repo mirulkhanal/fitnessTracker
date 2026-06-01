@@ -1,16 +1,51 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { useAuth } from '@/contexts/AuthContext';
 import { useErrorAlert } from '@/hooks/use-error-alert';
-import { supabase } from '@/services/supabase.client';
+import { biometricAuthService } from '@/services/biometric-auth.service';
+import { WrAuthRequestError, wrAuthClient } from '@/services/wrauth.client';
+import { wrauthConfigured } from '@/services/wrauth.config';
 
 export const useSignInForm = () => {
   const router = useRouter();
+  const { applyLoginResult } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState('Biometrics');
   const [error, setError] = useState<string | null>(null);
   const [errorTitle, setErrorTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadBiometricState = async () => {
+      if (!biometricAuthService.isSupportedPlatform()) {
+        return;
+      }
+      const [enabled, label, storedEmail] = await Promise.all([
+        biometricAuthService.isEnabled(),
+        biometricAuthService.getLoginLabel(),
+        biometricAuthService.getStoredEmail(),
+      ]);
+      if (!active) {
+        return;
+      }
+      setBiometricEnabled(enabled);
+      setBiometricLabel(label);
+      if (enabled && storedEmail) {
+        setEmail(storedEmail);
+      }
+    };
+
+    void loadBiometricState();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -24,6 +59,11 @@ export const useSignInForm = () => {
   });
 
   const handleEmailSignIn = useCallback(async () => {
+    if (!wrauthConfigured) {
+      setErrorTitle('Auth not configured');
+      setError('Set EXPO_PUBLIC_WRAUTH_API_URL and EXPO_PUBLIC_WRAUTH_APP_KEY in your environment.');
+      return;
+    }
     if (!email || !password) {
       setErrorTitle('Missing details');
       setError('Enter your email and password to continue.');
@@ -33,37 +73,91 @@ export const useSignInForm = () => {
     setError(null);
     setErrorTitle(null);
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (authError || !data.session) {
-        setErrorTitle('Sign in failed');
-        setError(authError?.message ?? 'Unable to sign in.');
+      const result = await wrAuthClient.login(email.trim(), password);
+      const outcome = await applyLoginResult(result);
+      if (outcome === 'mfa_required') {
+        setErrorTitle('Two-factor required');
+        setError('This account has 2FA enabled. Complete sign-in in the wrAuth admin client for now.');
+        return;
+      }
+      if (outcome === 'mfa_enrollment_required') {
+        setErrorTitle('2FA setup required');
+        setError('This app requires two-factor setup before you can sign in.');
         return;
       }
       setPassword('');
       router.replace('/(tabs)');
+    } catch (authError) {
+      setErrorTitle('Sign in failed');
+      if (authError instanceof WrAuthRequestError) {
+        if (authError.code === 'EMAIL_NOT_VERIFIED') {
+          setError('Verify your email, then try again.');
+        } else {
+          setError(authError.message);
+        }
+      } else {
+        setError('Unable to sign in.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [email, password, router]);
+  }, [applyLoginResult, email, password, router]);
 
-  const handleOAuth = useCallback(
-    async (provider: 'google' | 'github') => {
-      setErrorTitle('OAuth not configured');
-      setError(`${provider} sign in is not configured.`);
-    },
-    []
-  );
+  const handleBiometricSignIn = useCallback(async () => {
+    if (!wrauthConfigured) {
+      setErrorTitle('Auth not configured');
+      setError('Set EXPO_PUBLIC_WRAUTH_API_URL and EXPO_PUBLIC_WRAUTH_APP_KEY in your environment.');
+      return;
+    }
+
+    setBiometricLoading(true);
+    setError(null);
+    setErrorTitle(null);
+    try {
+      const credentials = await biometricAuthService.unlockCredentials();
+      const tokens = await wrAuthClient.refresh(credentials.refresh_token);
+      const outcome = await applyLoginResult(tokens);
+      if (outcome === 'mfa_required') {
+        setErrorTitle('Two-factor required');
+        setError('This account has 2FA enabled. Sign in with your password instead.');
+        return;
+      }
+      if (outcome === 'mfa_enrollment_required') {
+        setErrorTitle('2FA setup required');
+        setError('Sign in with your password to complete two-factor setup.');
+        return;
+      }
+      setEmail(credentials.email);
+      router.replace('/(tabs)');
+    } catch (authError) {
+      setErrorTitle('Biometric sign-in failed');
+      if (authError instanceof WrAuthRequestError) {
+        if (authError.status === 401) {
+          await biometricAuthService.disable();
+          setBiometricEnabled(false);
+          setError('Your saved sign-in expired. Sign in with your password and enable biometrics again.');
+        } else {
+          setError(authError.message);
+        }
+      } else if (authError instanceof Error) {
+        setError(authError.message);
+      } else {
+        setError('Unable to sign in with biometrics.');
+      }
+    } finally {
+      setBiometricLoading(false);
+    }
+  }, [applyLoginResult, router]);
 
   return {
     email,
     password,
-    loading,
+    loading: loading || biometricLoading,
+    biometricEnabled,
+    biometricLabel,
     setEmail,
     setPassword,
     handleEmailSignIn,
-    handleOAuth,
+    handleBiometricSignIn,
   };
 };

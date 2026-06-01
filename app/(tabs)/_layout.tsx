@@ -1,40 +1,21 @@
 import { Redirect, Tabs } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 import { AnimatedTabBar } from '@/components/navigation/animated-tab-bar';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { supabase } from '@/services/supabase.client';
 
 export default function TabLayout() {
   const { colors } = useTheme();
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [isAuthed, setIsAuthed] = useState(false);
+  const { isLoading, isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    let active = true;
-    const updateAuthState = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!active) return;
-      setIsAuthed(Boolean(data.user) && !error);
-      setCheckingAuth(false);
-    };
-    updateAuthState();
-    const { data: authListener } = supabase.auth.onAuthStateChange(() => {
-      updateAuthState();
-    });
-    return () => {
-      active = false;
-      authListener?.subscription?.unsubscribe?.();
-    };
-  }, []);
-
-  if (checkingAuth) {
+  if (isLoading) {
     return <ScreenLoading text="Checking account..." />;
   }
 
-  if (!isAuthed) {
+  if (!isAuthenticated) {
     return <Redirect href="/sign-in" />;
   }
 
@@ -58,8 +39,8 @@ export default function TabLayout() {
       <Tabs.Screen
         name="categories"
         options={{
-          title: 'Categories',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="folder.fill" color={color} />,
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="square.grid.2x2" color={color} />,
         }}
       />
       <Tabs.Screen

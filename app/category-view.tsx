@@ -1,22 +1,26 @@
-import { CategoryStatsRow } from '@/components/category-view/CategoryStatsRow';
-import { PhotoGrid } from '@/components/lists/PhotoGrid';
+import { CategoryDetailView } from '@/components/category-view/CategoryDetailView';
+import { HomeFab } from '@/components/home/HomeFab';
+import { HomeTopBar } from '@/components/home/HomeTopBar';
 import { PhotoSourceModal } from '@/components/modals/photo-source-modal';
-import { Button } from '@/components/ui/Button';
-import { IconSymbol } from '@/components/ui/icon-symbol';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
-import { ThemedText } from '@/components/ui/themed-text';
-import { ThemedView } from '@/components/ui/themed-view';
-import { useTheme } from '@/contexts/ThemeContext';
+import { FitTrackColors } from '@/constants/fittrack-theme';
+import { useAlert } from '@/contexts/AlertContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useCategoryPhotoActions } from '@/hooks/use-category-photo-actions';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+
+const HEADER_OFFSET = 108;
 
 export default function CategoryViewScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const { categoryId } = params;
-  const { colors } = useTheme();
+  const params = useLocalSearchParams<{ categoryId?: string; categoryName?: string }>();
+  const { categoryId, categoryName } = params;
+  const { showAlert } = useAlert();
+  const { session } = useAuth();
+  const displayName = session?.display_name?.trim() || 'Athlete';
+
   const {
     loading,
     photos,
@@ -26,98 +30,85 @@ export default function CategoryViewScreen() {
     handleDeletePhoto,
     handleCameraSelection,
     handleGallerySelection,
-  } = useCategoryPhotoActions(categoryId as string);
-  if (loading) {
+  } = useCategoryPhotoActions(categoryId);
+
+  const title =
+    (Array.isArray(categoryName) ? categoryName[0] : categoryName)?.trim() || 'Category';
+
+  if (loading && photos.length === 0) {
     return (
-      <ThemedView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <IconSymbol name="chevron.left" size={24} color="#666" />
-          </TouchableOpacity>
-          <ThemedText type="title" style={styles.title}>Loading...</ThemedText>
-          <View style={styles.placeholder} />
+      <View style={styles.container}>
+        <HomeTopBar
+          displayName={displayName}
+          avatarUrl={session?.avatar_url}
+          onBackPress={() => router.back()}
+          onNotificationsPress={() => {
+            showAlert({
+              title: 'Notifications',
+              message: 'Workout reminders are coming in a future update.',
+              variant: 'info',
+            });
+          }}
+        />
+        <View style={[styles.body, { paddingTop: HEADER_OFFSET }]}>
+          <ScreenLoading text="Loading photos..." />
         </View>
-        <ScreenLoading text="Loading photos..." />
-      </ThemedView>
+      </View>
     );
   }
 
-  const latestLabel =
-    photos.length > 0
-      ? new Date(photos[0].timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      : 'None';
-
   return (
-    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
-      <CategoryStatsRow photoCount={photos.length} latestLabel={latestLabel} />
-      <View style={styles.contentContainer}>
-        <PhotoGrid
+    <View style={styles.container}>
+      <HomeTopBar
+        displayName={displayName}
+        avatarUrl={session?.avatar_url}
+        onBackPress={() => router.back()}
+        onNotificationsPress={() => {
+          showAlert({
+            title: 'Notifications',
+            message: 'Workout reminders are coming in a future update.',
+            variant: 'info',
+          });
+        }}
+      />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_OFFSET }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <CategoryDetailView
+          categoryName={title}
           photos={photos}
           onDeletePhoto={handleDeletePhoto}
-          numColumns={2}
         />
-        <Button
-          title="Add Photo"
-          onPress={openModal}
-          icon="plus"
-          style={{ ...styles.addPhotoButtonFixed, backgroundColor: colors.accent }}
-        />
-      </View>
+      </ScrollView>
+
+      <HomeFab onPress={openModal} />
 
       <PhotoSourceModal
         visible={modalVisible}
         onClose={closeModal}
         onCamera={handleCameraSelection}
         onGallery={handleGallerySelection}
-        galleryAccent={colors.pinkAccent}
       />
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: FitTrackColors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 48,
-    paddingHorizontal: 24,
-    paddingBottom: 8,
-  },
-  backButton: {
-    padding: 8,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  placeholder: {
-    width: 44,
-  },
-  contentContainer: {
+  body: {
     flex: 1,
-    position: 'relative',
   },
-  addPhotoButtonFixed: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 25,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    paddingBottom: 120,
   },
 });

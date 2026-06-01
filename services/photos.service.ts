@@ -1,30 +1,22 @@
-import { supabase } from '@/services/supabase.client';
+import { dataMigrationService } from '@/services/data-migration.service';
+import { wrAuthDataService } from '@/services/wrauth-data.service';
 import { ProgressImage } from '@/types/photo.types';
+import { parseCategoryIds, serializeCategoryIds } from '@/utils/parse-category-ids';
+import { parseTimestampMs } from '@/utils/parse-timestamp';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths, readAsStringAsync } from 'expo-file-system';
 
 interface PhotoRow {
-  id: string | number;
-  user_id?: string;
+  id: string;
   local_id: string;
-  width: number | null;
-  height: number | null;
-  captured_at: number | string;
-  categories: Array<string | number> | null;
+  width: number;
+  height: number;
+  captured_at: string;
+  categories: unknown;
 }
-
-const PHOTOS_TABLE = 'photo_metadata';
 const ENCRYPTED_DIR = new Directory(Paths.document, 'encrypted-photos');
 const PREVIEW_DIR = new Directory(Paths.cache, 'photo-previews');
 const KEY_FILE = new File(Paths.document, 'photo-key.bin');
-
-const normalizeTimestamp = (value: number | string) => {
-  if (typeof value === 'number') {
-    return value;
-  }
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
 
 const toPublicUrl = (path: string) => {
   if (!path) {
@@ -47,9 +39,13 @@ const mapPhoto = (row: PhotoRow, uriOverride?: string): ProgressImage => ({
   uri: uriOverride ?? toPublicUrl(row.local_id),
   width: row.width ?? 0,
   height: row.height ?? 0,
-  timestamp: normalizeTimestamp(row.captured_at),
-  categories: (row.categories ?? []).map(category => String(category)),
+  timestamp: parseTimestampMs(row.captured_at),
+  categories: parseCategoryIds(row.categories),
 });
+
+const ensureSynced = async () => {
+  await dataMigrationService.migrateLocalDataToWrAuthIfNeeded();
+};
 
 const ensureStorageReady = () => {
   ENCRYPTED_DIR.create({ intermediates: true, idempotent: true });
@@ -199,13 +195,7 @@ const migrateToEncrypted = async (row: PhotoRow) => {
   const encryptedFile = getEncryptedFile(row.local_id);
   const encryptedBytes = await encryptBytes(sourceBytes, key);
   encryptedFile.write(encryptedBytes);
-  const { error } = await supabase
-    .from(PHOTOS_TABLE)
-    .update({ local_id: encryptedFile.uri })
-    .eq('id', normalizePhotoId(row.id));
-  if (error) {
-    throw new Error(error.message);
-  }
+  await wrAuthDataService.updatePhotoMetadata(row.id, { local_id: encryptedFile.uri });
   try {
     new File(row.local_id).delete();
   } catch {}
@@ -225,43 +215,29 @@ const resolvePhotoUri = async (row: PhotoRow) => {
 
 const normalizeCategoryIds = (value: string | string[]) => {
   const raw = Array.isArray(value) ? value : [value];
-  return raw
-    .map(item => {
-      const numeric = Number(item);
-      return Number.isFinite(numeric) ? numeric : null;
-    })
-    .filter((item): item is number => item !== null);
+  return raw.map(item => String(item)).filter(Boolean);
 };
 
-const normalizePhotoId = (value: string | number) => {
-  if (typeof value === 'number') {
-    return value;
-  }
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : value;
+const listPhotoRows = async (): Promise<PhotoRow[]> => {
+  await ensureSynced();
+  const rows = await wrAuthDataService.listPhotoMetadata();
+  return rows.map(row => ({
+    id: row.id,
+    local_id: row.local_id,
+    width: row.width,
+    height: row.height,
+    captured_at: row.captured_at,
+    categories: row.categories,
+  }));
 };
 
 const listPhotos = async (categoryId?: string): Promise<ProgressImage[]> => {
-  let query = supabase
-    .from(PHOTOS_TABLE)
-    .select('id, local_id, width, height, captured_at, categories')
-    .order('captured_at', { ascending: false });
-
-  if (categoryId) {
-    const normalizedCategoryIds = normalizeCategoryIds(categoryId);
-    if (normalizedCategoryIds.length > 0) {
-      query = query.contains('categories', normalizedCategoryIds);
-    }
-  }
-
-  const { data, error } = await query;
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const rows = (data ?? []) as PhotoRow[];
+  const rows = await listPhotoRows();
+  const filtered = categoryId
+    ? rows.filter(row => parseCategoryIds(row.categories).includes(categoryId))
+    : rows;
   const mapped = await Promise.all(
-    rows.map(async row => {
+    filtered.map(async row => {
       const resolvedUri = await resolvePhotoUri(row);
       return mapPhoto(row, resolvedUri);
     })
@@ -275,6 +251,7 @@ const savePhoto = async (
   width: number = 0,
   height: number = 0
 ): Promise<ProgressImage> => {
+  await ensureSynced();
   const capturedAt = new Date().toISOString();
   const normalizedCategoryIds = normalizeCategoryIds(categories);
   const key = await getOrCreateKey();
@@ -288,7 +265,17 @@ const savePhoto = async (
     } catch {}
   }
 
-  const payload = {
+  const categoriesJson = serializeCategoryIds(normalizedCategoryIds);
+  const remoteRow = await wrAuthDataService.createPhotoMetadata({
+    local_id: encryptedFile.uri,
+    width,
+    height,
+    captured_at: capturedAt,
+    categories: categoriesJson,
+  });
+
+  const row: PhotoRow = {
+    id: remoteRow.id,
     local_id: encryptedFile.uri,
     width,
     height,
@@ -296,51 +283,33 @@ const savePhoto = async (
     categories: normalizedCategoryIds,
   };
 
-  const { data, error } = await supabase
-    .from(PHOTOS_TABLE)
-    .insert(payload)
-    .select('id, local_id, width, height, captured_at, categories')
-    .single();
-
-  if (error || !data) {
-    throw new Error(error?.message ?? 'Failed to save photo');
-  }
-
   const previewUri = await ensurePreviewUri(encryptedFile.uri);
-  return mapPhoto(data as PhotoRow, previewUri);
+  return mapPhoto(row, previewUri);
+};
+
+const findPhotoRow = (rows: PhotoRow[], id: string | number) => {
+  const photoId = String(id);
+  return rows.find(row => String(row.id) === photoId);
 };
 
 const deletePhoto = async (id: string | number): Promise<void> => {
-  const normalizedPhotoId = normalizePhotoId(id);
-  const { data, error } = await supabase
-    .from(PHOTOS_TABLE)
-    .select('id, local_id')
-    .eq('id', normalizedPhotoId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await ensureSynced();
+  const photoId = String(id);
+  const rows = await listPhotoRows();
+  const data = findPhotoRow(rows, photoId);
 
   if (!data) {
-    return;
+    throw new Error('Photo not found. Pull to refresh and try again.');
   }
 
-  const { error: deleteError } = await supabase
-    .from(PHOTOS_TABLE)
-    .delete()
-    .eq('id', normalizedPhotoId);
+  await wrAuthDataService.deletePhotoMetadata(String(data.id));
 
-  if (deleteError) {
-    throw new Error(deleteError.message);
-  }
-
-  if (data?.local_id && data.local_id.startsWith('file://')) {
+  if (data.local_id && data.local_id.startsWith('file://')) {
     try {
       new File(data.local_id).delete();
     } catch {}
   }
-  if (data?.local_id && isEncryptedUri(data.local_id)) {
+  if (data.local_id && isEncryptedUri(data.local_id)) {
     const previewFile = getPreviewFileForEncrypted(data.local_id);
     if (previewFile.exists) {
       try {
@@ -348,42 +317,23 @@ const deletePhoto = async (id: string | number): Promise<void> => {
       } catch {}
     }
   }
-
 };
 
 const updatePhotoCategories = async (id: string | number, categories: string[]): Promise<void> => {
+  await ensureSynced();
   const normalizedCategoryIds = normalizeCategoryIds(categories);
-  const normalizedPhotoId = normalizePhotoId(id);
-  const { error } = await supabase
-    .from(PHOTOS_TABLE)
-    .update({ categories: normalizedCategoryIds })
-    .eq('id', normalizedPhotoId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await wrAuthDataService.updatePhotoMetadata(String(id), {
+    categories: serializeCategoryIds(normalizedCategoryIds),
+  });
 };
 
 const removeCategoryFromPhotos = async (categoryId: string): Promise<void> => {
-  const normalizedCategoryIds = normalizeCategoryIds(categoryId);
-  if (normalizedCategoryIds.length === 0) {
-    return;
-  }
-  const { data, error } = await supabase
-    .from(PHOTOS_TABLE)
-    .select('id, categories')
-    .contains('categories', normalizedCategoryIds);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const photos = (data ?? []) as Array<{ id: string | number; categories: Array<string | number> | null }>;
+  await ensureSynced();
+  const rows = await listPhotoRows();
+  const photos = rows.filter(row => parseCategoryIds(row.categories).includes(categoryId));
   await Promise.all(
     photos.map(async photo => {
-      const nextCategories = (photo.categories ?? [])
-        .map(category => String(category))
-        .filter(cat => cat !== categoryId);
+      const nextCategories = parseCategoryIds(photo.categories).filter(cat => cat !== categoryId);
       if (nextCategories.length === 0) {
         await deletePhoto(photo.id);
       } else {

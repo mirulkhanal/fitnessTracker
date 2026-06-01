@@ -2,17 +2,37 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useAlert } from '@/contexts/AlertContext';
 import { useImagePickerModal } from '@/hooks/use-image-picker-modal';
+import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
+import { useCategoriesStore } from '@/store/categories.store';
 import { usePhotosStore } from '@/store/photos.store';
 
-export const useCategoryPhotoActions = (categoryId: string) => {
+const normalizeRouteParam = (value: string | string[] | undefined): string => {
+  if (Array.isArray(value)) {
+    return value[0] ?? '';
+  }
+  return value ?? '';
+};
+
+export const useCategoryPhotoActions = (categoryIdParam: string | string[] | undefined) => {
+  const categoryId = normalizeRouteParam(categoryIdParam);
   const { showAlert } = useAlert();
   const { handleCameraPress, handleGalleryPress } = useImagePickerModal();
   const { loading, getPhotosByCategory, savePhoto, deletePhoto, loadPhotos } = usePhotosStore();
+  const { loadCategoryStats } = useCategoriesStore();
   const [modalVisible, setModalVisible] = useState(false);
 
+  const refresh = useCallback(async () => {
+    if (!categoryId) {
+      return;
+    }
+    await Promise.all([loadPhotos(categoryId), loadCategoryStats()]);
+  }, [categoryId, loadCategoryStats, loadPhotos]);
+
   useEffect(() => {
-    loadPhotos();
-  }, [categoryId, loadPhotos]);
+    void refresh();
+  }, [refresh]);
+
+  useRefreshOnFocus(refresh, [refresh]);
 
   const photos = getPhotosByCategory(categoryId);
 
@@ -30,10 +50,12 @@ export const useCategoryPhotoActions = (categoryId: string) => {
             onPress: async () => {
               try {
                 await deletePhoto(photoId);
+                await loadPhotos(categoryId);
               } catch (error) {
                 showAlert({
-                  title: 'Error',
-                  message: 'Failed to delete photo',
+                  title: 'Delete failed',
+                  message:
+                    error instanceof Error ? error.message : 'Could not delete this photo.',
                   variant: 'error',
                 });
               }
@@ -42,7 +64,7 @@ export const useCategoryPhotoActions = (categoryId: string) => {
         ],
       });
     },
-    [deletePhoto, showAlert]
+    [categoryId, deletePhoto, loadPhotos, showAlert]
   );
 
   const saveCapturedPhoto = useCallback(

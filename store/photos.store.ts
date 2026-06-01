@@ -81,28 +81,29 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
   },
 
   deletePhoto: async (id: string) => {
+    const photoId = String(id);
     set({ loading: true, error: null });
     try {
-      await photosService.deletePhoto(id);
-      
+      await photosService.deletePhoto(photoId);
+
       set(state => ({
-        photos: state.photos.filter(photo => photo.id !== id),
-        loading: false
+        photos: state.photos.filter(photo => String(photo.id) !== photoId),
+        loading: false,
       }));
-      
+
       const { useCategoriesStore } = await import('@/store/categories.store');
       const categoriesStore = useCategoriesStore.getState();
       await categoriesStore.loadCategoryStats();
 
-      // Trigger stats refresh
       const { useStatsStore } = await import('@/store/stats.store');
       const statsStore = useStatsStore.getState();
       await statsStore.loadStats();
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to delete photo',
-        loading: false 
+        loading: false,
       });
+      throw error;
     }
   },
 

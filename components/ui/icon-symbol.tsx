@@ -26,6 +26,7 @@ const MAPPING = {
   'pencil': 'edit',
   'photo.fill': 'photo-camera',
   'photo': 'photo-camera',
+  'camera.fill': 'photo-camera',
   'calendar': 'calendar-today',
   'flame.fill': 'local-fire-department',
   'person.fill': 'person',
@@ -55,6 +56,12 @@ const MAPPING = {
   'wind': 'air',
   'tornado': 'tornado',
   'hurricane': 'storm',
+  'touchid': 'fingerprint',
+  'photo.stack': 'photo-library',
+  'history': 'history',
+  'square.grid.2x2': 'apps',
+  'magnifyingglass': 'search',
+  'clock.fill': 'schedule',
 } as IconMapping;
 
 /**

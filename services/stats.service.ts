@@ -1,35 +1,24 @@
-import { supabase } from '@/services/supabase.client';
 import { ProgressStats } from '@/types/progress.interface';
+import { parseTimestampMs, toLocalDateString } from '@/utils/parse-timestamp';
 
-const normalizeTimestamp = (value: number | string) => {
-  if (typeof value === 'number') {
-    return value;
-  }
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
+import { dataMigrationService } from './data-migration.service';
+import { wrAuthDataService } from './wrauth-data.service';
 
-const toDateString = (timestamp: number) => {
-  const date = new Date(timestamp);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate()
-  ).padStart(2, '0')}`;
-};
-
-const calculateStreakFromDays = (streakDays: string[], startTimestamp: number) => {
+/**
+ * Count consecutive calendar days (local timezone) with at least one photo,
+ * ending on the day of the most recent photo.
+ */
+const calculateStreakFromDays = (streakDays: string[], lastPhotoTimestampMs: number) => {
   if (streakDays.length === 0) {
     return 0;
   }
 
   let currentStreak = 0;
-  let checkDate = new Date(startTimestamp);
+  let checkDate = new Date(lastPhotoTimestampMs);
   const sortedDays = [...streakDays].sort((a, b) => b.localeCompare(a));
 
   for (const day of sortedDays) {
-    const checkString = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(
-      2,
-      '0'
-    )}-${String(checkDate.getDate()).padStart(2, '0')}`;
+    const checkString = toLocalDateString(checkDate.getTime());
 
     if (day === checkString) {
       currentStreak += 1;
@@ -43,16 +32,11 @@ const calculateStreakFromDays = (streakDays: string[], startTimestamp: number) =
 };
 
 const getStats = async (): Promise<ProgressStats> => {
-  const { data, error } = await supabase
-    .from('photo_metadata')
-    .select('captured_at');
+  await dataMigrationService.migrateLocalDataToWrAuthIfNeeded();
+  const rows = await wrAuthDataService.listPhotoMetadata();
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const timestamps = (data ?? [])
-    .map(row => normalizeTimestamp(row.captured_at))
+  const timestamps = rows
+    .map(row => parseTimestampMs(row.captured_at))
     .filter(value => value > 0);
 
   const totalPhotos = timestamps.length;
@@ -61,13 +45,8 @@ const getStats = async (): Promise<ProgressStats> => {
   }
 
   const lastPhotoDate = Math.max(...timestamps);
-  const now = Date.now();
-  const twentyFourHours = 24 * 60 * 60 * 1000;
-  const uniqueDays = new Set(timestamps.map(toDateString));
-  const currentStreak =
-    now - lastPhotoDate > twentyFourHours
-      ? 0
-      : calculateStreakFromDays(Array.from(uniqueDays), lastPhotoDate);
+  const uniqueDays = new Set(timestamps.map(toLocalDateString));
+  const currentStreak = calculateStreakFromDays(Array.from(uniqueDays), lastPhotoDate);
 
   return {
     totalPhotos,

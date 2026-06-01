@@ -1,29 +1,25 @@
 {
   "expo": {
-    "name": "FitnessTracker",
+    "name": "FitTrack Progress",
     "slug": "FitnessTracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
     "scheme": "fitnesstracker",
-    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "com.meerule.FitnessTracker",
-      "buildNumber": "1",
       "supportsTablet": true
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.meerule.FitnessTracker",
-      "versionCode": 1
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [{ "scheme": "fitnesstracker" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "output": "static",
@@ -34,34 +30,14 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-web-browser",
-        {
-          "experimentalLauncherActivity": false
-        }
-      ],
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "supabaseUrl":"https://vuwyivjgposduzujleus.supabase.co",
-      "supabaseKey":"sb_publishable_xuKWUGRWSdYhEsS1LeUGBw_G2KCfQYQ",
       "eas": {
         "projectId": "02087f60-dc6c-4250-8815-980529edc4c9"
       }

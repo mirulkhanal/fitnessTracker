@@ -1,3 +1,5 @@
+import { databaseService } from '@/services/database.service';
+
 class AppService {
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
@@ -15,9 +17,14 @@ class AppService {
 
   private async _doInitialize(): Promise<void> {
     try {
-      console.log('Initializing FitTrack Progress app...');
+      if (__DEV__) {
+        console.log('[app] initializing…');
+      }
+      await databaseService.init();
       this.isInitialized = true;
-      console.log('App initialized successfully');
+      if (__DEV__) {
+        console.log('[app] ready');
+      }
     } catch (error) {
       console.error('Failed to initialize app:', error);
       this.initializationPromise = null; // Allow retry
