@@ -21,14 +21,27 @@ eas whoami
 
 ### 2. EAS project secrets
 
-Production builds **require** wrAuth env vars at build time (they are baked into the app):
+Production builds **require** wrAuth env vars at build time (they are baked into the app).
+
+**GitHub Actions** (for automated releases): add repository secrets  
+`EXPO_PUBLIC_WRAUTH_API_URL` and `EXPO_PUBLIC_WRAUTH_APP_KEY` (see table below).
+
+**EAS cloud builds** (recommended — same values):
 
 ```bash
-eas secret:create --scope project --name EXPO_PUBLIC_WRAUTH_API_URL --value "https://your-api.example.com"
-eas secret:create --scope project --name EXPO_PUBLIC_WRAUTH_APP_KEY --value "app_your_key"
+eas env:create production --name EXPO_PUBLIC_WRAUTH_API_URL --value "https://your-api.example.com" --visibility plaintext
+eas env:create production --name EXPO_PUBLIC_WRAUTH_APP_KEY --value "app_your_key" --visibility secret
 ```
 
-Or set the same values as [EAS environment variables](https://docs.expo.dev/eas/environment-variables/) in the Expo dashboard.
+Or set the same values as [EAS environment variables](https://docs.expo.dev/eas/environment-variables/) in the Expo dashboard for the **production** environment.
+
+**First Android build:** run once locally so EAS can create the Android keystore (only needed once):
+
+```bash
+pnpm exec eas build --platform android --profile production
+```
+
+Choose **Let EAS handle credentials** when prompted. After that, CI builds run non-interactively.
 
 ### 3. Android signing (first build only)
 

@@ -63,23 +63,31 @@ jobs:
           fi
           exit "$missing"
 
+      - name: Verify EAS login
+        run: pnpm exec eas whoami
+
       - name: Build Android APK
         id: build
         run: |
+          set -euo pipefail
           PROFILE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
-          pnpm exec eas whoami
+          echo "Building with profile: $PROFILE"
           pnpm exec eas build \
             --platform android \
             --profile "$PROFILE" \
             --non-interactive \
-            --wait \
-            --json > build-output.json
-          BUILD_ID=$(node -e "const j=require('./build-output.json'); const b=Array.isArray(j)?j[0]:j; console.log(b.id);")
-          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "undefined" ]; then
-            echo "::error::Could not read build id from EAS response"
-            cat build-output.json
-            exit 1
-          fi
+            --wait 2>&1 | tee eas-build.log
+          BUILD_ID=$(pnpm exec eas build:list \
+            --platform ANDROID \
+            --status finished \
+            --limit 1 \
+            --non-interactive \
+            --json | node -e "
+              const rows = JSON.parse(require('fs').readFileSync(0, 'utf8'));
+              const build = Array.isArray(rows) ? rows[0] : rows;
+              if (!build?.id) process.exit(1);
+              console.log(build.id);
+            ")
           echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
           echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
 
@@ -104,3 +112,11 @@ jobs:
           name: fittrack-android-apk
           path: FitTrack-Progress-*.apk
           if-no-files-found: error
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eas-build-log
+          path: eas-build.log
+          if-no-files-found: ignore
