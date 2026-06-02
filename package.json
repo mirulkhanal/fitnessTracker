@@ -76,5 +76,9 @@
   "pnpm": {
     "ignoredBuiltDependencies": ["dtrace-provider", "dtrace-provider@0.8.8"]
   },
+  "volta": {
+    "node": "22.13.0",
+    "pnpm": "11.5.0"
+  },
   "private": true
 }
