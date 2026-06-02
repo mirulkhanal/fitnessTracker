@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 
+import { avatarUploadService } from '@/services/avatar-upload.service';
 import { authSessionService } from '@/services/auth-session.service';
 import { dataMigrationService } from '@/services/data-migration.service';
 import { pendingProfileService } from '@/services/pending-profile.service';
@@ -46,6 +47,11 @@ const persistSession = async (
     ...(pendingProfile ?? {}),
     ...(profile ?? {}),
   };
+  if (profilePayload.avatar_url) {
+    profilePayload.avatar_url = await avatarUploadService.resolveAvatarForProfile(
+      profilePayload.avatar_url
+    );
+  }
 
   let remoteProfile = null;
   try {

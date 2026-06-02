@@ -2,6 +2,7 @@ import { GlassPanel } from '@/components/ui/GlassPanel';
 import { FitTrackSwitch } from '@/components/ui/FitTrackSwitch';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
+import { useAuthenticatedImageSource } from '@/hooks/use-authenticated-image-source';
 import { Image } from 'expo-image';
 import React from 'react';
 import {
@@ -89,6 +90,7 @@ export function ProfileEditSection({
   onPickAvatar,
   onSave,
 }: ProfileEditSectionProps) {
+  const avatarSource = useAuthenticatedImageSource(avatarUri);
   const fallbackName =
     displayName.trim() ||
     (email !== 'Not signed in' && email !== 'Not available' ? email.split('@')[0] : 'Profile');
@@ -107,8 +109,8 @@ export function ProfileEditSection({
                 onPress={onPickAvatar}
                 activeOpacity={0.85}
               >
-                {avatarUri ? (
-                  <Image source={{ uri: avatarUri }} style={styles.avatarImage} contentFit="cover" />
+                {avatarSource ? (
+                  <Image source={avatarSource} style={styles.avatarImage} contentFit="cover" />
                 ) : (
                   <Text style={styles.avatarFallback}>
                     {fallbackName.charAt(0).toUpperCase()}

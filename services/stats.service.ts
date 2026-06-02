@@ -2,7 +2,7 @@ import { ProgressStats } from '@/types/progress.interface';
 import { parseTimestampMs, toLocalDateString } from '@/utils/parse-timestamp';
 
 import { dataMigrationService } from './data-migration.service';
-import { wrAuthDataService } from './wrauth-data.service';
+import { photosService } from './photos.service';
 
 /**
  * Count consecutive calendar days (local timezone) with at least one photo,
@@ -33,11 +33,7 @@ const calculateStreakFromDays = (streakDays: string[], lastPhotoTimestampMs: num
 
 const getStats = async (): Promise<ProgressStats> => {
   await dataMigrationService.migrateLocalDataToWrAuthIfNeeded();
-  const rows = await wrAuthDataService.listPhotoMetadata();
-
-  const timestamps = rows
-    .map(row => parseTimestampMs(row.captured_at))
-    .filter(value => value > 0);
+  const timestamps = await photosService.listAvailablePhotoTimestamps();
 
   const totalPhotos = timestamps.length;
   if (totalPhotos === 0) {

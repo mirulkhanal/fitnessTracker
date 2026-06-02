@@ -11,6 +11,11 @@ import type {
   WrAuthUser,
 } from '@/types/wrauth.types';
 
+import {
+  isWrAuthStorageRef,
+  parseWrAuthStorageRef,
+} from '@/constants/wrauth-storage';
+
 import { wrauthApiUrl, wrauthAppKey } from './wrauth.config';
 
 export class WrAuthRequestError extends Error {
@@ -356,6 +361,67 @@ export const wrAuthClient = {
       method: 'DELETE',
       accessToken,
     }),
+
+  createStorageObject: (
+    accessToken: string,
+    body: {
+      purpose: 'avatar' | 'progress_photo' | 'photo_vault_key';
+      content_type: string;
+      data_base64: string;
+    }
+  ) =>
+    authRequest<{
+      object: {
+        id: string;
+        purpose: string;
+        content_type: string;
+        byte_size: number;
+      };
+    }>({
+      path: '/storage/objects',
+      method: 'POST',
+      accessToken,
+      body,
+    }).then(result => result.object),
+
+  downloadStorageObject: async (accessToken: string, storageRef: string): Promise<string> => {
+    if (!isWrAuthStorageRef(storageRef)) {
+      throw new WrAuthRequestError(400, 'INVALID_STORAGE_REF', 'Invalid storage reference');
+    }
+    const objectId = parseWrAuthStorageRef(storageRef);
+    const headers: Record<string, string> = {
+      'X-App-Key': wrauthAppKey,
+      Authorization: `Bearer ${accessToken}`,
+    };
+    const response = await fetch(`${wrauthApiUrl}/storage/objects/${objectId}`, { headers });
+    if (!response.ok) {
+      const apiError = await parseError(response);
+      throw apiError;
+    }
+    const buffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    if (typeof btoa === 'function') {
+      return btoa(binary);
+    }
+    const { bytesToBase64 } = await import('@/utils/bytes-base64');
+    return bytesToBase64(bytes);
+  },
+
+  deleteStorageObject: (accessToken: string, storageRef: string) => {
+    if (!isWrAuthStorageRef(storageRef)) {
+      return Promise.resolve();
+    }
+    const objectId = parseWrAuthStorageRef(storageRef);
+    return authRequest<void>({
+      path: `/storage/objects/${objectId}`,
+      method: 'DELETE',
+      accessToken,
+    });
+  },
 
   isSessionTokens,
 };

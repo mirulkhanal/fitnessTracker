@@ -60,11 +60,13 @@ curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
 
 ## wrAuth data tables (categories, photos, streaks)
 
-Categories and photo **metadata** are stored in wrAuth (`/data/categories`, `/data/photo_metadata`). Streak counts and totals are computed from `photo_metadata` rows (same as before, but sourced from wrAuth).
+Categories and photo **metadata** live in wrAuth (`/data/categories`, `/data/photo_metadata`). **Day streak**, **total photos**, and **last photo** are computed from metadata rows that have accessible media (local cache or wrAuth storage) — not stored as separate counters.
 
-Encrypted image files stay on the device (`local_id` in `photo_metadata` points at the on-device path).
+**Per-user privacy:** wrAuth automatically adds an `owner_user_id` system column to every data table (new and existing). List/create/update/delete APIs only return rows owned by the signed-in user when that column is present.
 
-Create these tables in wrAuth admin (replace `{APP_ID}`):
+**Cross-device sync:** progress photos and avatars are uploaded to wrAuth object storage (`POST /storage/objects`). Metadata `local_id` stores a `wrauth-storage://{objectId}` reference. The photo encryption key is synced to storage under purpose `photo_vault_key` so another device can decrypt.
+
+Create these tables in wrAuth admin (replace `{APP_ID}`). You do **not** need to declare `owner_user_id` — wrAuth adds it automatically:
 
 ```bash
 curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
@@ -83,7 +85,7 @@ curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
   -H "Content-Type: application/json" \
   -d '{
     "table_key": "photo_metadata",
-    "description": "Progress photo records (files on device)",
+    "description": "Progress photo metadata (blobs in wrAuth storage)",
     "columns": [
       { "name": "local_id", "type": "text", "nullable": false, "indexed": false },
       { "name": "width", "type": "integer", "nullable": false, "indexed": false },
@@ -94,4 +96,6 @@ curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
   }'
 ```
 
-On first sign-in after upgrading, any existing SQLite categories/photos are uploaded once, then local rows are cleared. Photo files are not re-uploaded (device-local encryption unchanged).
+On first sign-in after upgrading, legacy SQLite categories/photos are uploaded once, then local rows are cleared. Orphan metadata (no file and no storage blob) is removed automatically so dashboard counts match visible photos.
+
+**Deploy wrAuth** with the storage volume (`STORAGE_ROOT`, default `./storage` or `/app/storage` in Docker) and rebuild the API after pulling these changes so `owner_user_id` migration and `/storage` routes are active.

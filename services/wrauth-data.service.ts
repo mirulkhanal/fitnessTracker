@@ -2,6 +2,17 @@ import { authSessionService } from '@/services/auth-session.service';
 import { WrAuthRequestError, wrAuthClient } from '@/services/wrauth.client';
 import type { WrAuthCategoryRow, WrAuthPhotoMetadataRow } from '@/types/wrauth-data.types';
 
+const filterOwnedRows = async <T extends { owner_user_id?: string }>(
+  rows: T[]
+): Promise<T[]> => {
+  const session = await authSessionService.getSession();
+  const userId = session?.user?.id;
+  if (!userId) {
+    return [];
+  }
+  return rows.filter(row => !row.owner_user_id || row.owner_user_id === userId);
+};
+
 const getAccessToken = async (): Promise<string> => {
   const token = await authSessionService.getAccessToken();
   if (!token) {
@@ -21,10 +32,11 @@ export const wrAuthDataService = {
   async listCategories(): Promise<WrAuthCategoryRow[]> {
     const accessToken = await getAccessToken();
     try {
-      return await wrAuthClient.listAllDataRows<WrAuthCategoryRow>('categories', accessToken, {
+      const rows = await wrAuthClient.listAllDataRows<WrAuthCategoryRow>('categories', accessToken, {
         sort: 'created_at',
         order: 'asc',
       });
+      return await filterOwnedRows(rows);
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('categories'));
@@ -86,7 +98,7 @@ export const wrAuthDataService = {
   async listPhotoMetadata(): Promise<WrAuthPhotoMetadataRow[]> {
     const accessToken = await getAccessToken();
     try {
-      return await wrAuthClient.listAllDataRows<WrAuthPhotoMetadataRow>(
+      const rows = await wrAuthClient.listAllDataRows<WrAuthPhotoMetadataRow>(
         'photo_metadata',
         accessToken,
         {
@@ -94,6 +106,7 @@ export const wrAuthDataService = {
           order: 'desc',
         }
       );
+      return await filterOwnedRows(rows);
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('photo_metadata'));

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAlert } from '@/contexts/AlertContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { avatarUploadService } from '@/services/avatar-upload.service';
 import { WrAuthRequestError } from '@/services/wrauth.client';
 import { useRouter } from 'expo-router';
 
@@ -89,10 +90,11 @@ export const useSettingsActions = () => {
 
     setSavingProfile(true);
     try {
+      const avatarUrl = await avatarUploadService.resolveAvatarForProfile(avatarUriDraft);
       await updateProfile({
         display_name: trimmedName,
         bio: bioDraft.trim() || null,
-        avatar_url: avatarUriDraft,
+        avatar_url: avatarUrl,
       });
       showAlert({
         title: 'Profile saved',

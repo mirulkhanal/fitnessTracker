@@ -1,5 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { useAuthenticatedImageSource } from '@/hooks/use-authenticated-image-source';
 import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -29,7 +30,8 @@ export function HomeTopBar({
   onBackPress,
 }: HomeTopBarProps) {
   const insets = useSafeAreaInsets();
-  const hasAvatar = Boolean(avatarUrl?.trim());
+  const avatarSource = useAuthenticatedImageSource(avatarUrl);
+  const hasAvatar = Boolean(avatarSource?.uri);
 
   return (
     <View
@@ -48,7 +50,7 @@ export function HomeTopBar({
         accessibilityLabel={onBackPress ? 'Go back' : 'Profile'}
       >
         {hasAvatar ? (
-          <Image source={{ uri: avatarUrl! }} style={styles.avatarImage} contentFit="cover" />
+          <Image source={avatarSource!} style={styles.avatarImage} contentFit="cover" />
         ) : onBackPress ? (
           <IconSymbol name="chevron.left" size={22} color={FitTrackColors.onSurfaceVariant} />
         ) : (
