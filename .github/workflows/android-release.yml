@@ -44,7 +44,7 @@ jobs:
           EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
         run: |
           if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ] || [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
-            echo "::error::Set GitHub secrets EXPO_PUBLIC_WRAUTH_API_URL and EXPO_PUBLIC_WRAUTH_APP_KEY before building."
+            echo "::error::Set EXPO_PUBLIC_WRAUTH_API_URL and EXPO_PUBLIC_WRAUTH_APP_KEY in GitHub secrets."
             exit 1
           fi
 
@@ -54,28 +54,26 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android APK
-        id: build
         env:
           EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
           EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
         run: |
           PROFILE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
+          echo "Building with profile: $PROFILE"
           pnpm exec eas build \
             --platform android \
             --profile "$PROFILE" \
             --non-interactive \
-            --wait \
-            --json > build-output.json
-          BUILD_ID=$(node -e "const j=require('./build-output.json'); const b=Array.isArray(j)?j[0]:j; console.log(b.id);")
-          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
-          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+            --wait
 
       - name: Download APK
         run: |
-          VERSION="${{ github.event.release.tag_name || 'manual' }}"
+          VERSION="${{ github.event.release.tag_name || github.ref_name }}"
           pnpm exec eas build:download \
-            --id "${{ steps.build.outputs.build_id }}" \
+            --platform android \
+            --latest \
             --output "FitTrack-Progress-${VERSION}.apk"
+          ls -lh FitTrack-Progress-*.apk
 
       - name: Upload to GitHub Release
         if: github.event_name == 'release'
