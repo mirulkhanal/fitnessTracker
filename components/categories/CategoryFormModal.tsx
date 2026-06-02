@@ -1,5 +1,6 @@
 import { CategoryForm } from '@/components/forms/CategoryForm';
 import { GlassPanel } from '@/components/ui/GlassPanel';
+import { FitTrackColors } from '@/constants/fittrack-theme';
 import { CreateCategoryRequest } from '@/types/category.types';
 import React, { useEffect } from 'react';
 import {

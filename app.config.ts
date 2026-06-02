@@ -14,7 +14,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/images/icon.png',
   ios: {
     ...config.ios,
-    bundleIdentifier: 'com.meerule.FitnessTracker',
+    bundleIdentifier: 'com.fittrack.progress',
     buildNumber: config.ios?.buildNumber ?? '1',
     infoPlist: {
       ...(config.ios?.infoPlist as object | undefined),
@@ -24,7 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     ...config.android,
-    package: 'com.meerule.FitnessTracker',
+    package: 'com.fittrack.progress',
     versionCode: config.android?.versionCode ?? 1,
     adaptiveIcon: {
       backgroundColor: '#051424',
