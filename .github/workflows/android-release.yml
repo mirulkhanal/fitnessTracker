@@ -24,6 +24,8 @@ jobs:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
       EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
+    outputs:
+      profile: ${{ steps.profile.outputs.value }}
 
     steps:
       - name: Checkout
@@ -52,23 +54,60 @@ jobs:
             exit 1
           fi
 
+      - name: Set build profile
+        id: profile
+        run: |
+          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
+          echo "value=$VALUE" >> $GITHUB_OUTPUT
+
       - name: Build Android APK
         run: |
-          PROFILE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
-          echo "Building with profile: $PROFILE"
+          echo "Building with profile: ${{ steps.profile.outputs.value }}"
           pnpm exec eas build \
             --platform android \
-            --profile "$PROFILE" \
+            --profile "${{ steps.profile.outputs.value }}" \
             --non-interactive \
             --wait
+
+  download-and-release:
+    needs: build-android
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Download APK
         run: |
           VERSION="${{ github.event.release.tag_name || github.ref_name }}"
-          pnpm exec eas build:download \
+          PROFILE="${{ needs.build-android.outputs.profile }}"
+          BUILD_URL=$(pnpm exec eas build:list \
             --platform android \
-            --latest \
-            --output "FitTrack-Progress-${VERSION}.apk"
+            --profile "$PROFILE" \
+            --limit 1 \
+            --json \
+            --non-interactive \
+            | jq -r '.[0].artifacts.applicationArchiveUrl')
+          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
+            echo "::error::Failed to get APK download URL from EAS"
+            exit 1
+          fi
+          echo "Downloading APK from: $BUILD_URL"
+          curl -L --fail "$BUILD_URL" -o "FitTrack-Progress-${VERSION}.apk"
           ls -lh FitTrack-Progress-*.apk
 
       - name: Upload to GitHub Release
