@@ -1,3 +1,2 @@
 allowBuilds:
-  dtrace-provider: false
   unrs-resolver: true

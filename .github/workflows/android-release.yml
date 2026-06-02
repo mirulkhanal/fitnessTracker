@@ -3,9 +3,6 @@ name: Android Release
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       profile:
@@ -23,11 +20,6 @@ permissions:
 jobs:
   build-android:
     runs-on: ubuntu-latest
-    env:
-      HUSKY: 0
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
-      EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,56 +36,43 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Validate release secrets
+        env:
+          EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
+          EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
         run: |
-          missing=0
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "::error::Missing GitHub secret EXPO_TOKEN (Expo access token)."
-            missing=1
+          if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ] || [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
+            echo "::error::Set GitHub secrets EXPO_PUBLIC_WRAUTH_API_URL and EXPO_PUBLIC_WRAUTH_APP_KEY before building."
+            exit 1
           fi
-          if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ]; then
-            echo "::error::Missing GitHub secret EXPO_PUBLIC_WRAUTH_API_URL."
-            missing=1
-          fi
-          if [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
-            echo "::error::Missing GitHub secret EXPO_PUBLIC_WRAUTH_APP_KEY."
-            missing=1
-          fi
-          exit "$missing"
 
-      - name: Verify EAS login
-        run: pnpm exec eas whoami
+      - name: Setup EAS auth
+        uses: expo/expo-github-action@v8
+        with:
+          token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build Android APK
         id: build
+        env:
+          EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
+          EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
         run: |
-          set -euo pipefail
           PROFILE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
-          echo "Building with profile: $PROFILE"
           pnpm exec eas build \
             --platform android \
             --profile "$PROFILE" \
             --non-interactive \
-            --wait 2>&1 | tee eas-build.log
-          BUILD_ID=$(pnpm exec eas build:list \
-            --platform ANDROID \
-            --status finished \
-            --limit 1 \
-            --non-interactive \
-            --json | node -e "
-              const rows = JSON.parse(require('fs').readFileSync(0, 'utf8'));
-              const build = Array.isArray(rows) ? rows[0] : rows;
-              if (!build?.id) process.exit(1);
-              console.log(build.id);
-            ")
+            --wait \
+            --json > build-output.json
+          BUILD_ID=$(node -e "const j=require('./build-output.json'); const b=Array.isArray(j)?j[0]:j; console.log(b.id);")
           echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
           echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
 
       - name: Download APK
         run: |
-          VERSION="${{ github.event.release.tag_name || github.ref_name || 'manual' }}"
+          VERSION="${{ github.event.release.tag_name || 'manual' }}"
           pnpm exec eas build:download \
             --id "${{ steps.build.outputs.build_id }}" \
             --output "FitTrack-Progress-${VERSION}.apk"
@@ -106,17 +85,9 @@ jobs:
           fail_on_unmatched_files: true
 
       - name: Upload workflow artifact
-        if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: fittrack-android-apk
           path: FitTrack-Progress-*.apk
           if-no-files-found: error
-
-      - name: Upload build log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eas-build-log
-          path: eas-build.log
-          if-no-files-found: ignore
