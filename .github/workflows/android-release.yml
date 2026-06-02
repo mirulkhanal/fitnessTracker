@@ -1,8 +1,8 @@
 name: Android Release
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [master]
   workflow_dispatch:
     inputs:
       profile:
@@ -17,19 +17,24 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
-      EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
     outputs:
       profile: ${{ steps.profile.outputs.value }}
+      build_id: ${{ steps.build.outputs.build_id }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -43,14 +48,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Validate secrets
+      - name: Validate required secrets
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::Missing GitHub secret: EXPO_TOKEN"
-            exit 1
-          fi
-          if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ] || [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
-            echo "::error::Missing GitHub secrets: EXPO_PUBLIC_WRAUTH_API_URL or EXPO_PUBLIC_WRAUTH_APP_KEY"
             exit 1
           fi
 
@@ -58,19 +59,168 @@ jobs:
         id: profile
         run: |
           VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
-          echo "value=$VALUE" >> $GITHUB_OUTPUT
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: Build Android APK
+      - name: Build Android APK on EAS
+        id: build
         run: |
-          echo "Building with profile: ${{ steps.profile.outputs.value }}"
-          pnpm exec eas build \
+          PROFILE="${{ steps.profile.outputs.value }}"
+          echo "Building with profile: $PROFILE"
+          BUILD_JSON=$(pnpm exec eas build \
             --platform android \
-            --profile "${{ steps.profile.outputs.value }}" \
+            --profile "$PROFILE" \
             --non-interactive \
-            --wait
+            --wait \
+            --json)
+          echo "$BUILD_JSON" > eas-build.json
+          BUILD_ID=$(jq -r 'if type=="array" then .[0].id else .id end' eas-build.json)
+          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
+            echo "::error::Could not parse EAS build id from output"
+            exit 1
+          fi
+          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
 
-  download-and-release:
+  publish-release:
     needs: build-android
+    if: needs.build-android.outputs.profile == 'production' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve next tag and release notes
+        id: version
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          def run(cmd: str) -> str:
+            return subprocess.check_output(cmd, shell=True, text=True).strip()
+
+          tags_at_head_raw = run("git tag --points-at HEAD -l 'v*' --sort=-version:refname")
+          tags_at_head = [t for t in tags_at_head_raw.splitlines() if t]
+          if tags_at_head:
+            tag = tags_at_head[0]
+            release_name = f"FitTrack Progress {tag}"
+            notes = "\n".join([
+              "## Release rerun",
+              "",
+              "This workflow rerun re-published artifacts for an existing tag.",
+              "",
+              f"Tag: {tag}",
+              f"Source commit: {os.environ['GITHUB_SHA']}",
+            ])
+            Path("release-notes.md").write_text(notes + "\n", encoding="utf-8")
+            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"tag={tag}\n")
+              f.write(f"release_name={release_name}\n")
+            raise SystemExit(0)
+
+          tags_raw = run("git tag -l 'v*' --sort=-version:refname")
+          tags = [t for t in tags_raw.splitlines() if t]
+          last_tag = tags[0] if tags else None
+
+          if last_tag:
+            commit_messages = run(f"git log --format=%B {last_tag}..HEAD")
+            commits_short = run(f"git log --pretty=format:'- %s (%h)' {last_tag}..HEAD")
+            base = last_tag[1:]
+          else:
+            commit_messages = run("git log --format=%B")
+            commits_short = run("git log --pretty=format:'- %s (%h)'")
+            base = "0.0.0"
+
+          if not commits_short.strip():
+            commits_short = "- chore: no new commits found"
+
+          parts = [int(p) for p in base.split(".")]
+          while len(parts) < 3:
+            parts.append(0)
+          major, minor, patch = parts[:3]
+
+          bump = "patch"
+          if "BREAKING CHANGE" in commit_messages or re.search(r"^[a-zA-Z]+(\(.+\))?!:", commit_messages, re.MULTILINE):
+            bump = "major"
+          elif re.search(r"^feat(\(.+\))?:", commit_messages, re.MULTILINE):
+            bump = "minor"
+
+          if bump == "major":
+            major += 1
+            minor = 0
+            patch = 0
+          elif bump == "minor":
+            minor += 1
+            patch = 0
+          else:
+            patch += 1
+
+          tag = f"v{major}.{minor}.{patch}"
+          release_name = f"FitTrack Progress {tag}"
+          previous = last_tag if last_tag else "initial release"
+          notes = "\n".join([
+            f"## Changes since {previous}",
+            "",
+            commits_short,
+            "",
+            f"Build profile: production",
+            f"Source commit: {os.environ['GITHUB_SHA']}",
+          ])
+
+          Path("release-notes.md").write_text(notes + "\n", encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+            f.write(f"tag={tag}\n")
+            f.write(f"release_name={release_name}\n")
+          PY
+
+      - name: Download APK by deterministic EAS build id
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          BUILD_ID="${{ needs.build-android.outputs.build_id }}"
+          OUTPUT_FILE="FitTrack-Progress-${TAG}.apk"
+          pnpm exec eas build:download \
+            --id "$BUILD_ID" \
+            --path "$OUTPUT_FILE" \
+            --non-interactive
+          ls -lh "$OUTPUT_FILE"
+
+      - name: Create or update GitHub release
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          TITLE="${{ steps.version.outputs.release_name }}"
+          FILE="FitTrack-Progress-${TAG}.apk"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            gh release create "$TAG" "$FILE" \
+              --target "$GITHUB_SHA" \
+              --title "$TITLE" \
+              --notes-file release-notes.md
+          fi
+
+  upload-preview-artifact:
+    needs: build-android
+    if: needs.build-android.outputs.profile == 'preview'
     runs-on: ubuntu-latest
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -91,36 +241,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Download APK
+      - name: Download preview APK by build id
         run: |
-          VERSION="${{ github.event.release.tag_name || github.ref_name }}"
-          PROFILE="${{ needs.build-android.outputs.profile }}"
-          BUILD_URL=$(pnpm exec eas build:list \
-            --platform android \
-            --profile "$PROFILE" \
-            --limit 1 \
-            --json \
-            --non-interactive \
-            | jq -r '.[0].artifacts.applicationArchiveUrl')
-          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
-            echo "::error::Failed to get APK download URL from EAS"
-            exit 1
-          fi
-          echo "Downloading APK from: $BUILD_URL"
-          curl -L --fail "$BUILD_URL" -o "FitTrack-Progress-${VERSION}.apk"
-          ls -lh FitTrack-Progress-*.apk
+          BUILD_ID="${{ needs.build-android.outputs.build_id }}"
+          FILE="FitTrack-Progress-preview-${GITHUB_SHA::7}.apk"
+          pnpm exec eas build:download \
+            --id "$BUILD_ID" \
+            --path "$FILE" \
+            --non-interactive
+          ls -lh "$FILE"
 
-      - name: Upload to GitHub Release
-        if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: FitTrack-Progress-*.apk
-          fail_on_unmatched_files: true
-
-      - name: Upload workflow artifact
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload preview artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fittrack-android-apk
-          path: FitTrack-Progress-*.apk
+          name: fittrack-android-preview
+          path: FitTrack-Progress-preview-*.apk
           if-no-files-found: error

@@ -66,28 +66,45 @@ Preview builds (same APK format, internal distribution):
 eas build --platform android --profile preview
 ```
 
-## Publish a GitHub Release
+## Automatic GitHub Releases (recommended)
 
-1. Bump version in `app.json` / `package.json` (and run `eas build:version:set` if you use remote app version).
-2. Commit and push to `main`.
-3. Create a new GitHub release with a tag (e.g. `v1.0.0`):
+The [Android Release](.github/workflows/android-release.yml) workflow now runs automatically on every push to `master`.
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+For `production` profile runs, it will:
 
-Then on GitHub: **Releases → Draft a new release** → choose the tag → **Publish release**.
+1. Build Android APK on EAS.
+2. Resolve the next semver tag from commit messages since the last `v*` tag:
+   - `BREAKING CHANGE` or `type!:` -> major bump
+   - `feat:` -> minor bump
+   - everything else -> patch bump
+3. Generate release notes from commit subjects.
+4. Create (or update on rerun) the GitHub release and upload `FitTrack-Progress-vX.Y.Z.apk`.
 
-The [Android Release](.github/workflows/android-release.yml) workflow will:
+### Why reruns now work reliably
 
-1. Run an EAS `production` Android build (`buildType: apk`)
-2. Download the APK
-3. Attach it to the release as `FitTrack-Progress-v1.0.0.apk`
+The pipeline stores the exact EAS build ID from the build step and downloads by that ID.
+It does not rely on "latest build", so failed/retried workflows remain deterministic.
 
-### Test the workflow without a release
+### Manual runs
 
-**Actions → Android Release → Run workflow** (manual). The APK is uploaded as a workflow artifact.
+**Actions -> Android Release -> Run workflow**
+
+- `production`: creates/updates a tagged GitHub release.
+- `preview`: uploads the APK as an Actions artifact only.
+
+## OTA updates (no reinstall for JS/assets-only changes)
+
+Use [EAS OTA Update](.github/workflows/eas-update.yml) via:
+
+**Actions -> EAS OTA Update -> Run workflow**
+
+Inputs:
+
+- `branch` (default `production`)
+- `message` (release note visible in EAS update history)
+
+This ships JavaScript and asset updates to installed binaries without redistributing an APK.
+Native changes (new native dependency/plugin/config) still require a fresh APK build.
 
 ## User install steps
 

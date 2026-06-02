@@ -1,0 +1,60 @@
+name: EAS OTA Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: EAS update branch (example: production)
+        required: true
+        default: production
+      message:
+        description: Update message shown in EAS update history
+        required: true
+        default: "chore: OTA update"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eas-update-${{ github.event.inputs.branch }}
+  cancel-in-progress: false
+
+jobs:
+  publish-update:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Validate required secrets
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Missing GitHub secret: EXPO_TOKEN"
+            exit 1
+          fi
+
+      - name: Publish OTA update
+        run: |
+          BRANCH="${{ github.event.inputs.branch }}"
+          MESSAGE="${{ github.event.inputs.message }}"
+          pnpm exec eas update \
+            --branch "$BRANCH" \
+            --message "$MESSAGE" \
+            --non-interactive
