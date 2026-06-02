@@ -60,11 +60,6 @@ jobs:
           VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
           echo "value=$VALUE" >> $GITHUB_OUTPUT
 
-      - name: Write env file for EAS
-        run: |
-          echo "EXPO_PUBLIC_WRAUTH_API_URL=$EXPO_PUBLIC_WRAUTH_API_URL" >> .env.eas
-          echo "EXPO_PUBLIC_WRAUTH_APP_KEY=$EXPO_PUBLIC_WRAUTH_APP_KEY" >> .env.eas
-
       - name: Build Android APK
         run: |
           echo "Building with profile: ${{ steps.profile.outputs.value }}"
@@ -72,8 +67,7 @@ jobs:
             --platform android \
             --profile "${{ steps.profile.outputs.value }}" \
             --non-interactive \
-            --wait \
-            --env-file .env.eas
+            --wait
 
   download-and-release:
     needs: build-android
