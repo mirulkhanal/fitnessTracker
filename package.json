@@ -2,7 +2,7 @@
   "name": "fitnesstracker",
   "main": "expo-router/entry",
   "version": "1.0.0",
-  "packageManager": "pnpm@11.5.0",
+  "packageManager": "pnpm@10.34.1+sha256.b568bc5ee2b68a9735743c1b9f09b3d3065de64befaf186c5d01b2f084d16cc0",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -74,11 +74,14 @@
     "*.{ts,tsx,js,jsx}": "npm run lint"
   },
   "pnpm": {
-    "ignoredBuiltDependencies": ["dtrace-provider", "dtrace-provider@0.8.8"]
+    "ignoredBuiltDependencies": [
+      "dtrace-provider",
+      "dtrace-provider@0.8.8"
+    ]
   },
   "volta": {
-    "node": "22.13.0",
-    "pnpm": "11.5.0"
+    "node": "20.19.4",
+    "pnpm": "10.34.1"
   },
   "private": true
 }
