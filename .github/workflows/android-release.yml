@@ -197,10 +197,12 @@ jobs:
           TAG="${{ steps.version.outputs.tag }}"
           BUILD_ID="${{ needs.build-android.outputs.build_id }}"
           OUTPUT_FILE="FitTrack-Progress-${TAG}.apk"
-          pnpm exec eas build:download \
-            --id "$BUILD_ID" \
-            --path "$OUTPUT_FILE" \
-            --non-interactive
+          BUILD_URL=$(pnpm exec eas build:view "$BUILD_ID" --json | jq -r '.artifacts.applicationArchiveUrl')
+          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
+            echo "::error::Failed to resolve build artifact URL for build id: $BUILD_ID"
+            exit 1
+          fi
+          curl -L --fail "$BUILD_URL" -o "$OUTPUT_FILE"
           ls -lh "$OUTPUT_FILE"
 
       - name: Create or update GitHub release
@@ -245,10 +247,12 @@ jobs:
         run: |
           BUILD_ID="${{ needs.build-android.outputs.build_id }}"
           FILE="FitTrack-Progress-preview-${GITHUB_SHA::7}.apk"
-          pnpm exec eas build:download \
-            --id "$BUILD_ID" \
-            --path "$FILE" \
-            --non-interactive
+          BUILD_URL=$(pnpm exec eas build:view "$BUILD_ID" --json | jq -r '.artifacts.applicationArchiveUrl')
+          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
+            echo "::error::Failed to resolve build artifact URL for build id: $BUILD_ID"
+            exit 1
+          fi
+          curl -L --fail "$BUILD_URL" -o "$FILE"
           ls -lh "$FILE"
 
       - name: Upload preview artifact
