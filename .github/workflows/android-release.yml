@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
+      EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
     outputs:
       profile: ${{ steps.profile.outputs.value }}
       build_id: ${{ steps.build.outputs.build_id }}
@@ -54,6 +56,15 @@ jobs:
             echo "::error::Missing GitHub secret: EXPO_TOKEN"
             exit 1
           fi
+          if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ] || [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
+            echo "::error::Missing GitHub secrets: EXPO_PUBLIC_WRAUTH_API_URL or EXPO_PUBLIC_WRAUTH_APP_KEY"
+            exit 1
+          fi
+
+      - name: Print resolved wrAuth config (pre-build)
+        run: |
+          echo "Resolved EXPO_PUBLIC_WRAUTH_API_URL: $EXPO_PUBLIC_WRAUTH_API_URL"
+          pnpm exec expo config --json | jq -r '.extra.wrauthApiUrl // "<empty>"' | sed 's/^/expo config extra.wrauthApiUrl: /'
 
       - name: Set build profile
         id: profile
