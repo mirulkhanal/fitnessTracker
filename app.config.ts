@@ -37,6 +37,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     ...(config.plugins ?? []),
     [
+      'expo-build-properties',
+      {
+        android: {
+          usesCleartextTraffic: allowCleartext,
+        },
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         image: './assets/images/splash-icon.png',
