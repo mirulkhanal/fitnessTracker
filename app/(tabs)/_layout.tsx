@@ -7,8 +7,10 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAppLock } from '@/contexts/AppLockContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useStoreErrorAlerts } from '@/hooks/use-store-error-alerts';
 
 export default function TabLayout() {
+  useStoreErrorAlerts();
   const { colors } = useTheme();
   const { isLoading, isAuthenticated } = useAuth();
   const { isLocked } = useAppLock();

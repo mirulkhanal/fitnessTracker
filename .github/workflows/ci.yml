@@ -31,3 +31,9 @@ jobs:
 
       - name: Typecheck
         run: pnpm exec tsc --noEmit
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Expo doctor
+        run: pnpm exec expo-doctor

@@ -19,6 +19,28 @@ export type BiometricAvailability =
 
 const isNativeMobile = Platform.OS === 'ios' || Platform.OS === 'android';
 
+const runBiometricPrompt = async (promptMessage: string): Promise<void> => {
+  if (!isNativeMobile) {
+    throw new Error('This device does not support biometric sign-in.');
+  }
+  const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  if (!hasHardware) {
+    throw new Error('This device does not support biometric sign-in.');
+  }
+  const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+  if (!isEnrolled) {
+    throw new Error('Add a fingerprint or face unlock in your device settings first.');
+  }
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage,
+    cancelLabel: 'Cancel',
+    disableDeviceFallback: false,
+  });
+  if (!result.success) {
+    throw new Error('Biometric verification was cancelled.');
+  }
+};
+
 const parseCredentials = (raw: string | null): StoredBiometricCredentials | null => {
   if (!raw) {
     return null;
@@ -94,11 +116,9 @@ export const biometricAuthService = {
       email,
     };
 
+    await runBiometricPrompt('Confirm to enable app unlock');
     await SecureStore.deleteItemAsync(CREDENTIALS_KEY).catch(() => undefined);
-    await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(payload), {
-      requireAuthentication: true,
-      authenticationPrompt: 'Confirm to enable app unlock',
-    });
+    await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(payload));
     await AsyncStorage.multiSet([
       [ENABLED_KEY, 'true'],
       [EMAIL_KEY, email],
@@ -114,22 +134,25 @@ export const biometricAuthService = {
     }
   },
 
+  /** Re-wrap stored credentials after token refresh without re-prompting the user. */
+  async updateRefreshToken(refreshToken: string, email: string): Promise<void> {
+    if (!(await this.isEnabled())) {
+      return;
+    }
+    const payload: StoredBiometricCredentials = { refresh_token: refreshToken, email };
+    await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(payload));
+  },
+
+  /** Single biometric prompt when the user is already signed in (app lock). */
+  async unlockAppAccess(): Promise<void> {
+    await this.authenticateUser('Unlock FitTrack Progress');
+  },
+
   async authenticateUser(promptMessage: string): Promise<void> {
     if (!(await this.isEnabled())) {
       throw new Error('App unlock is not enabled.');
     }
-    const availability = await this.getAvailability();
-    if (availability !== 'available') {
-      throw new Error('Biometrics are not available on this device.');
-    }
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage,
-      cancelLabel: 'Cancel',
-      disableDeviceFallback: false,
-    });
-    if (!result.success) {
-      throw new Error('Biometric verification was cancelled.');
-    }
+    await runBiometricPrompt(promptMessage);
   },
 
   async getStoredCredentials(): Promise<StoredBiometricCredentials> {
@@ -146,8 +169,9 @@ export const biometricAuthService = {
     return credentials;
   },
 
+  /** Biometric sign-in when no active session (reads stored refresh token once). */
   async unlockCredentials(): Promise<StoredBiometricCredentials> {
-    await this.authenticateUser('Unlock FitTrack Progress');
+    await this.authenticateUser('Sign in to FitTrack Progress');
     return this.getStoredCredentials();
   },
 };

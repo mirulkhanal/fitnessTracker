@@ -9,7 +9,7 @@ import { sortPhotosChronologically } from '@/utils/sort-progress-photos';
 
 export const useProgressScreen = () => {
   const categoryStats = useCategoriesStore(state => state.categoryStats);
-  const categoriesLoading = useCategoriesStore(state => state.loading);
+  const categoriesLoading = useCategoriesStore(state => state.statsLoading);
   const loadCategoryStats = useCategoriesStore(state => state.loadCategoryStats);
   const loadPhotos = usePhotosStore(state => state.loadPhotos);
 
@@ -44,7 +44,10 @@ export const useProgressScreen = () => {
 
   const refresh = useCallback(async () => {
     await loadCategoryStats();
-  }, [loadCategoryStats]);
+    if (selectedCategoryId) {
+      await loadPhotos(selectedCategoryId);
+    }
+  }, [loadCategoryStats, loadPhotos, selectedCategoryId]);
 
   useRefreshOnFocus(refresh, [refresh]);
 

@@ -5,8 +5,12 @@ import { useAlert } from '@/contexts/AlertContext';
 import { useAppLock } from '@/contexts/AppLockContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { PRIVACY_POLICY_URL } from '@/constants/legal';
+import { accountDeletionService } from '@/services/account-deletion.service';
 import { avatarUploadService } from '@/services/avatar-upload.service';
+import { dataExportService } from '@/services/data-export.service';
 import { WrAuthRequestError } from '@/services/wrauth.client';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 
 export const useSettingsActions = () => {
@@ -163,17 +167,20 @@ export const useSettingsActions = () => {
   const handleExportData = useCallback(() => {
     showAlert({
       title: 'Export Data',
-      message: 'This feature will allow you to export all your progress photos and data.',
+      message:
+        'Exports category and photo metadata as JSON. Encrypted image files are not included in this file.',
       variant: 'info',
       buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Export',
           onPress: () => {
-            showAlert({
-              title: 'Coming Soon',
-              message: 'Data export feature will be available in a future update.',
-              variant: 'info',
+            void dataExportService.exportMetadataJson().catch(error => {
+              showAlert({
+                title: 'Export failed',
+                message: error instanceof Error ? error.message : 'Unable to export data.',
+                variant: 'error',
+              });
             });
           },
         },
@@ -190,13 +197,46 @@ export const useSettingsActions = () => {
   }, [showAlert]);
 
   const handlePrivacy = useCallback(() => {
-    showAlert({
-      title: 'Privacy Policy',
-      message:
-        'Progress photos are encrypted on this device. Categories and photo records sync to your wrAuth account. Optional fingerprint unlock keeps you signed in but requires biometrics whenever you open the app.',
-      variant: 'info',
+    void Linking.openURL(PRIVACY_POLICY_URL).catch(() => {
+      showAlert({
+        title: 'Privacy Policy',
+        message:
+          'Progress photos are encrypted on this device. Categories and photo records sync to your wrAuth account. Optional biometric unlock stores credentials in your device secure enclave.',
+        variant: 'info',
+      });
     });
   }, [showAlert]);
+
+  const handleDeleteAccount = useCallback(() => {
+    if (!signedIn) {
+      return;
+    }
+    showAlert({
+      title: 'Delete account?',
+      message:
+        'This permanently removes your categories, photo metadata, and cloud storage tied to this account. Encrypted files on this device are also cleared. This cannot be undone.',
+      variant: 'warning',
+      buttons: [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void accountDeletionService
+              .deleteAccountAndLocalData()
+              .then(() => router.replace('/sign-in'))
+              .catch(error => {
+                showAlert({
+                  title: 'Deletion failed',
+                  message: error instanceof Error ? error.message : 'Unable to delete account.',
+                  variant: 'error',
+                });
+              });
+          },
+        },
+      ],
+    });
+  }, [router, showAlert, signedIn]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -235,6 +275,7 @@ export const useSettingsActions = () => {
     handleExportData,
     handleAbout,
     handlePrivacy,
+    handleDeleteAccount,
     handleSignOut,
   };
 };

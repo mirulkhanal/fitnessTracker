@@ -111,6 +111,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       return await operation();
     } finally {
       lockSuspendCountRef.current = Math.max(0, lockSuspendCountRef.current - 1);
+      if (lockSuspendCountRef.current === 0) {
+        skipNextLockRef.current = true;
+      }
     }
   }, []);
 

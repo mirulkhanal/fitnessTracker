@@ -7,6 +7,7 @@ import { create } from 'zustand';
 interface CategoriesStore extends LoadingState {
   categories: Category[];
   categoryStats: CategoryStats[];
+  statsLoading: boolean;
   
   // Actions
   loadCategories: () => Promise<void>;
@@ -25,6 +26,7 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
   categories: [],
   categoryStats: [],
   loading: false,
+  statsLoading: false,
   error: null,
 
   loadCategories: async () => {
@@ -41,7 +43,7 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
   },
 
   loadCategoryStats: async () => {
-    set({ loading: true, error: null });
+    set({ statsLoading: true, error: null });
     try {
       const categories = await categoriesService.listCategories();
       set({ categories });
@@ -51,7 +53,7 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
       } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to load photos' });
       }
-      
+
       const stats: CategoryStats[] = categories.map(category => {
         const categoryImages = photoStats.filter(img => img.categories.includes(category.id));
         
@@ -66,11 +68,11 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
         };
       });
 
-      set({ categoryStats: stats, loading: false });
+      set({ categoryStats: stats, statsLoading: false });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load category stats',
-        loading: false 
+        statsLoading: false,
       });
     }
   },

@@ -4,7 +4,6 @@ import { HomeTopBar } from '@/components/home/HomeTopBar';
 import { PhotoSourceModal } from '@/components/modals/photo-source-modal';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { FitTrackColors } from '@/constants/fittrack-theme';
-import { useAlert } from '@/contexts/AlertContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCategoryPhotoActions } from '@/hooks/use-category-photo-actions';
 import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
@@ -18,7 +17,6 @@ export default function CategoryViewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryId?: string; categoryName?: string }>();
   const { categoryId, categoryName } = params;
-  const { showAlert } = useAlert();
   const { session } = useAuth();
   const displayName = session?.display_name?.trim() || 'Athlete';
 

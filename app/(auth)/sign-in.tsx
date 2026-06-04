@@ -14,6 +14,7 @@ export default function SignInScreen() {
     loading,
     biometricEnabled,
     biometricLabel,
+    unlockOnly,
     setEmail,
     setPassword,
     handleEmailSignIn,
@@ -22,8 +23,9 @@ export default function SignInScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <AuthTitle title="Sign in" />
+      <AuthTitle title={unlockOnly ? 'Unlock app' : 'Sign in'} />
       <SignInEmailForm
+        unlockOnly={unlockOnly}
         email={email}
         password={password}
         loading={loading}

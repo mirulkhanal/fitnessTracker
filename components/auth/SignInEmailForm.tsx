@@ -10,6 +10,7 @@ interface SignInEmailFormProps {
   email: string;
   password: string;
   loading: boolean;
+  unlockOnly?: boolean;
   biometricEnabled?: boolean;
   biometricLabel?: string;
   onEmailChange: (value: string) => void;
@@ -24,6 +25,7 @@ export function SignInEmailForm({
   email,
   password,
   loading,
+  unlockOnly = false,
   biometricEnabled = false,
   biometricLabel = 'Biometrics',
   onEmailChange,
@@ -35,6 +37,25 @@ export function SignInEmailForm({
 }: SignInEmailFormProps) {
   const { colors } = useTheme();
   const showBiometricButton = biometricEnabled && Boolean(onBiometricSignIn);
+
+  if (unlockOnly) {
+    return (
+      <View style={styles.formSection}>
+        {showBiometricButton ? (
+          <TouchableOpacity
+            style={[styles.biometricUnlock, { borderColor: colors.border }]}
+            onPress={onBiometricSignIn}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={`Unlock with ${biometricLabel}`}
+            activeOpacity={0.8}
+          >
+            <IconSymbol name="touchid" size={40} color={colors.accent} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.formSection}>
@@ -99,6 +120,15 @@ const styles = StyleSheet.create({
     width: 52,
     minHeight: 44,
     borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  biometricUnlock: {
+    alignSelf: 'center',
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

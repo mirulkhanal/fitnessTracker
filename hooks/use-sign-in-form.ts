@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAppLock } from '@/contexts/AppLockContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +10,7 @@ import { wrauthConfigured } from '@/services/wrauth.config';
 
 export const useSignInForm = () => {
   const router = useRouter();
-  const { applyLoginResult, isAuthenticated, refreshSession, session } = useAuth();
+  const { applyLoginResult, isAuthenticated, session } = useAuth();
   const { isLocked, releaseLock } = useAppLock();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,6 +20,13 @@ export const useSignInForm = () => {
   const [biometricLabel, setBiometricLabel] = useState('Biometrics');
   const [error, setError] = useState<string | null>(null);
   const [errorTitle, setErrorTitle] = useState<string | null>(null);
+  const autoUnlockAttemptedRef = useRef(false);
+
+  const unlockSignedInApp = useCallback(async () => {
+    await biometricAuthService.unlockAppAccess();
+    releaseLock();
+    router.replace('/(tabs)');
+  }, [releaseLock, router]);
 
   useEffect(() => {
     let active = true;
@@ -48,6 +55,16 @@ export const useSignInForm = () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isLocked || !biometricEnabled || autoUnlockAttemptedRef.current) {
+      return;
+    }
+    autoUnlockAttemptedRef.current = true;
+    void unlockSignedInApp().catch(() => {
+      autoUnlockAttemptedRef.current = false;
+    });
+  }, [biometricEnabled, isAuthenticated, isLocked, unlockSignedInApp]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -117,20 +134,12 @@ export const useSignInForm = () => {
     setError(null);
     setErrorTitle(null);
     try {
-      await biometricAuthService.authenticateUser('Unlock FitTrack Progress');
-
-      if (isLocked && isAuthenticated && session?.refresh_token) {
-        try {
-          await refreshSession();
-        } catch {
-          // Offline or expired refresh — still allow unlock if session exists locally.
-        }
-        releaseLock();
-        router.replace('/(tabs)');
+      if (isAuthenticated && session?.refresh_token) {
+        await unlockSignedInApp();
         return;
       }
 
-      const credentials = await biometricAuthService.getStoredCredentials();
+      const credentials = await biometricAuthService.unlockCredentials();
       const tokens = await wrAuthClient.refresh(credentials.refresh_token);
       const outcome = await applyLoginResult(tokens);
       if (outcome === 'mfa_required') {
@@ -164,15 +173,9 @@ export const useSignInForm = () => {
     } finally {
       setBiometricLoading(false);
     }
-  }, [
-    applyLoginResult,
-    isAuthenticated,
-    isLocked,
-    refreshSession,
-    releaseLock,
-    router,
-    session?.refresh_token,
-  ]);
+  }, [applyLoginResult, isAuthenticated, releaseLock, router, session?.refresh_token, unlockSignedInApp]);
+
+  const unlockOnly = isAuthenticated && isLocked;
 
   return {
     email,
@@ -180,6 +183,7 @@ export const useSignInForm = () => {
     loading: loading || biometricLoading,
     biometricEnabled,
     biometricLabel,
+    unlockOnly,
     setEmail,
     setPassword,
     handleEmailSignIn,

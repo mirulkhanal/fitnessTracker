@@ -1,8 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 import type { StoredAuthSession } from '@/types/wrauth.types';
 
-const STORAGE_KEY = '@fitnesstracker/wrauth_session';
+const SESSION_KEY = '@fitnesstracker/wrauth_session_profile';
+const LEGACY_SESSION_KEY = '@fitnesstracker/wrauth_session';
+const REFRESH_TOKEN_KEY = 'fitnesstracker_refresh_token';
+
+type SessionProfile = Omit<StoredAuthSession, 'refresh_token'>;
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -11,6 +16,75 @@ let memorySession: StoredAuthSession | null = null;
 
 const notify = () => {
   listeners.forEach(listener => listener());
+};
+
+const readRefreshToken = async (): Promise<string | null> => {
+  try {
+    return await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeRefreshToken = async (token: string | null): Promise<void> => {
+  try {
+    if (!token) {
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+      return;
+    }
+    await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, token);
+  } catch {
+    // SecureStore can fail on simulators without entitlements.
+  }
+};
+
+const readProfile = async (): Promise<SessionProfile | null> => {
+  const raw = await AsyncStorage.getItem(SESSION_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw) as SessionProfile;
+  } catch {
+    await AsyncStorage.removeItem(SESSION_KEY);
+    return null;
+  }
+};
+
+const writeProfile = async (profile: SessionProfile | null): Promise<void> => {
+  if (!profile) {
+    await AsyncStorage.removeItem(SESSION_KEY);
+    return;
+  }
+  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(profile));
+};
+
+const migrateLegacySession = async (): Promise<StoredAuthSession | null> => {
+  const raw = await AsyncStorage.getItem(LEGACY_SESSION_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const legacy = JSON.parse(raw) as StoredAuthSession;
+    if (!legacy?.refresh_token || !legacy.access_token || !legacy.user) {
+      await AsyncStorage.removeItem(LEGACY_SESSION_KEY);
+      return null;
+    }
+    await authSessionService.setSession(legacy);
+    await AsyncStorage.removeItem(LEGACY_SESSION_KEY);
+    return legacy;
+  } catch {
+    await AsyncStorage.removeItem(LEGACY_SESSION_KEY);
+    return null;
+  }
+};
+
+const mergeSession = async (): Promise<StoredAuthSession | null> => {
+  const [refresh_token, profile] = await Promise.all([readRefreshToken(), readProfile()]);
+  if (!refresh_token || !profile?.access_token || !profile.user) {
+    return migrateLegacySession();
+  }
+  return { ...profile, refresh_token };
 };
 
 export const authSessionService = {
@@ -25,26 +99,19 @@ export const authSessionService = {
     if (memorySession) {
       return memorySession;
     }
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    try {
-      memorySession = JSON.parse(raw) as StoredAuthSession;
-      return memorySession;
-    } catch {
-      await AsyncStorage.removeItem(STORAGE_KEY);
-      return null;
-    }
+    memorySession = await mergeSession();
+    return memorySession;
   },
 
   async setSession(session: StoredAuthSession | null): Promise<void> {
     memorySession = session;
     if (!session) {
-      await AsyncStorage.removeItem(STORAGE_KEY);
-    } else {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+      await Promise.all([writeRefreshToken(null), writeProfile(null)]);
+      notify();
+      return;
     }
+    const { refresh_token, ...profile } = session;
+    await Promise.all([writeRefreshToken(refresh_token), writeProfile(profile)]);
     notify();
   },
 

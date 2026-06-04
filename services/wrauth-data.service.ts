@@ -1,4 +1,5 @@
 import { authSessionService } from '@/services/auth-session.service';
+import { executeWithAccessTokenRetry } from '@/services/wrauth-session-refresh.service';
 import { WrAuthRequestError, wrAuthClient } from '@/services/wrauth.client';
 import type { WrAuthCategoryRow, WrAuthPhotoMetadataRow } from '@/types/wrauth-data.types';
 
@@ -13,13 +14,8 @@ const filterOwnedRows = async <T extends { owner_user_id?: string }>(
   return rows.filter(row => !row.owner_user_id || row.owner_user_id === userId);
 };
 
-const getAccessToken = async (): Promise<string> => {
-  const token = await authSessionService.getAccessToken();
-  if (!token) {
-    throw new Error('Sign in required');
-  }
-  return token;
-};
+const withAccessToken = <T>(operation: (accessToken: string) => Promise<T>): Promise<T> =>
+  executeWithAccessTokenRetry(operation);
 
 const isMissingTableError = (error: unknown) =>
   error instanceof WrAuthRequestError &&
@@ -30,13 +26,14 @@ const missingTableMessage = (table: string) =>
 
 export const wrAuthDataService = {
   async listCategories(): Promise<WrAuthCategoryRow[]> {
-    const accessToken = await getAccessToken();
     try {
-      const rows = await wrAuthClient.listAllDataRows<WrAuthCategoryRow>('categories', accessToken, {
-        sort: 'created_at',
-        order: 'asc',
+      return await withAccessToken(async accessToken => {
+        const rows = await wrAuthClient.listAllDataRows<WrAuthCategoryRow>('categories', accessToken, {
+          sort: 'created_at',
+          order: 'asc',
+        });
+        return filterOwnedRows(rows);
       });
-      return await filterOwnedRows(rows);
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('categories'));
@@ -50,10 +47,15 @@ export const wrAuthDataService = {
     color: string;
     icon: string;
   }): Promise<WrAuthCategoryRow> {
-    const accessToken = await getAccessToken();
     try {
-      const result = await wrAuthClient.createDataRow<WrAuthCategoryRow>('categories', accessToken, payload);
-      return result.row;
+      return await withAccessToken(async accessToken => {
+        const result = await wrAuthClient.createDataRow<WrAuthCategoryRow>(
+          'categories',
+          accessToken,
+          payload
+        );
+        return result.row;
+      });
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('categories'));
@@ -66,15 +68,16 @@ export const wrAuthDataService = {
     id: string,
     payload: Partial<Pick<WrAuthCategoryRow, 'name' | 'color' | 'icon'>>
   ): Promise<WrAuthCategoryRow> {
-    const accessToken = await getAccessToken();
     try {
-      const result = await wrAuthClient.updateDataRow<WrAuthCategoryRow>(
-        'categories',
-        accessToken,
-        id,
-        payload
-      );
-      return result.row;
+      return await withAccessToken(async accessToken => {
+        const result = await wrAuthClient.updateDataRow<WrAuthCategoryRow>(
+          'categories',
+          accessToken,
+          id,
+          payload
+        );
+        return result.row;
+      });
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('categories'));
@@ -84,9 +87,10 @@ export const wrAuthDataService = {
   },
 
   async deleteCategory(id: string): Promise<void> {
-    const accessToken = await getAccessToken();
     try {
-      await wrAuthClient.deleteDataRow('categories', accessToken, id);
+      await withAccessToken(accessToken =>
+        wrAuthClient.deleteDataRow('categories', accessToken, id)
+      );
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('categories'));
@@ -96,17 +100,18 @@ export const wrAuthDataService = {
   },
 
   async listPhotoMetadata(): Promise<WrAuthPhotoMetadataRow[]> {
-    const accessToken = await getAccessToken();
     try {
-      const rows = await wrAuthClient.listAllDataRows<WrAuthPhotoMetadataRow>(
-        'photo_metadata',
-        accessToken,
-        {
-          sort: 'captured_at',
-          order: 'desc',
-        }
-      );
-      return await filterOwnedRows(rows);
+      return await withAccessToken(async accessToken => {
+        const rows = await wrAuthClient.listAllDataRows<WrAuthPhotoMetadataRow>(
+          'photo_metadata',
+          accessToken,
+          {
+            sort: 'captured_at',
+            order: 'desc',
+          }
+        );
+        return filterOwnedRows(rows);
+      });
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('photo_metadata'));
@@ -122,14 +127,15 @@ export const wrAuthDataService = {
     captured_at: string;
     categories: string;
   }): Promise<WrAuthPhotoMetadataRow> {
-    const accessToken = await getAccessToken();
     try {
-      const result = await wrAuthClient.createDataRow<WrAuthPhotoMetadataRow>(
-        'photo_metadata',
-        accessToken,
-        payload
-      );
-      return result.row;
+      return await withAccessToken(async accessToken => {
+        const result = await wrAuthClient.createDataRow<WrAuthPhotoMetadataRow>(
+          'photo_metadata',
+          accessToken,
+          payload
+        );
+        return result.row;
+      });
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('photo_metadata'));
@@ -142,15 +148,16 @@ export const wrAuthDataService = {
     id: string,
     payload: Partial<Pick<WrAuthPhotoMetadataRow, 'local_id' | 'width' | 'height' | 'captured_at' | 'categories'>>
   ): Promise<WrAuthPhotoMetadataRow> {
-    const accessToken = await getAccessToken();
     try {
-      const result = await wrAuthClient.updateDataRow<WrAuthPhotoMetadataRow>(
-        'photo_metadata',
-        accessToken,
-        id,
-        payload
-      );
-      return result.row;
+      return await withAccessToken(async accessToken => {
+        const result = await wrAuthClient.updateDataRow<WrAuthPhotoMetadataRow>(
+          'photo_metadata',
+          accessToken,
+          id,
+          payload
+        );
+        return result.row;
+      });
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('photo_metadata'));
@@ -160,9 +167,10 @@ export const wrAuthDataService = {
   },
 
   async deletePhotoMetadata(id: string): Promise<void> {
-    const accessToken = await getAccessToken();
     try {
-      await wrAuthClient.deleteDataRow('photo_metadata', accessToken, id);
+      await withAccessToken(accessToken =>
+        wrAuthClient.deleteDataRow('photo_metadata', accessToken, id)
+      );
     } catch (error) {
       if (isMissingTableError(error)) {
         throw new Error(missingTableMessage('photo_metadata'));

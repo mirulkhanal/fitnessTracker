@@ -224,14 +224,25 @@ export function DataManagementSection({ onExport }: DataManagementSectionProps) 
 }
 
 interface AccountSectionProps {
+  signedIn: boolean;
   onSignOut: () => void;
+  onDeleteAccount: () => void;
 }
 
-export function AccountSection({ onSignOut }: AccountSectionProps) {
+export function AccountSection({ signedIn, onSignOut, onDeleteAccount }: AccountSectionProps) {
   return (
     <View style={styles.section}>
       <SectionLabel>ACCOUNT</SectionLabel>
       <GlassPanel style={styles.glassCardTight}>
+        {signedIn ? (
+          <SettingRow
+            icon="trash"
+            title="Delete account"
+            subtitle="Remove your data from this app and wrAuth"
+            onPress={onDeleteAccount}
+            showDivider
+          />
+        ) : null}
         <SettingRow icon="rectangle.portrait.and.arrow.right" title="Sign out" onPress={onSignOut} />
       </GlassPanel>
     </View>

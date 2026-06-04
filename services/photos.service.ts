@@ -9,6 +9,7 @@ import { base64ToBytes } from '@/utils/bytes-base64';
 import { parseCategoryIds, serializeCategoryIds } from '@/utils/parse-category-ids';
 import { compressImageForStorage, createPreviewFromUri } from '@/utils/compress-image';
 import { parseTimestampMs } from '@/utils/parse-timestamp';
+import { decryptPhotoBytes, encryptPhotoBytes } from '@/utils/photo-crypto';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths, readAsStringAsync } from 'expo-file-system';
 
@@ -104,62 +105,6 @@ const getOrCreateKey = async () => {
   return await KEY_FILE.bytes();
 };
 
-const concatBytes = (...parts: Uint8Array[]) => {
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  const combined = new Uint8Array(total);
-  let offset = 0;
-  for (const part of parts) {
-    combined.set(part, offset);
-    offset += part.length;
-  }
-  return combined;
-};
-
-const xorBytes = (left: Uint8Array, right: Uint8Array) => {
-  const output = new Uint8Array(left.length);
-  for (let i = 0; i < left.length; i += 1) {
-    output[i] = left[i] ^ right[i];
-  }
-  return output;
-};
-
-const deriveKeystream = async (key: Uint8Array, nonce: Uint8Array, length: number) => {
-  const blockSize = 4096;
-  const blocks = Math.ceil(length / blockSize);
-  const output = new Uint8Array(length);
-  let offset = 0;
-
-  for (let index = 0; index < blocks; index += 1) {
-    const counter = new Uint8Array(4);
-    counter[0] = (index >>> 24) & 255;
-    counter[1] = (index >>> 16) & 255;
-    counter[2] = (index >>> 8) & 255;
-    counter[3] = index & 255;
-    const seed = concatBytes(key, nonce, counter);
-    const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, seed);
-    const block = new Uint8Array(digest);
-    const slice = block.slice(0, Math.min(block.length, length - offset));
-    output.set(slice, offset);
-    offset += slice.length;
-  }
-
-  return output;
-};
-
-const encryptBytes = async (data: Uint8Array, key: Uint8Array) => {
-  const nonce = await Crypto.getRandomBytesAsync(16);
-  const keystream = await deriveKeystream(key, nonce, data.length);
-  const encrypted = xorBytes(data, keystream);
-  return concatBytes(nonce, encrypted);
-};
-
-const decryptBytes = async (payload: Uint8Array, key: Uint8Array) => {
-  const nonce = payload.slice(0, 16);
-  const encrypted = payload.slice(16);
-  const keystream = await deriveKeystream(key, nonce, encrypted.length);
-  return xorBytes(encrypted, keystream);
-};
-
 const getExtensionFromUri = (uri: string) => {
   const match = uri.match(/\.([a-zA-Z0-9]+)(?:\?|#|$)/);
   return match?.[1]?.toLowerCase() ?? 'jpg';
@@ -249,7 +194,7 @@ const ensurePreviewUri = async (encryptedUri: string) => {
   }
   const key = await getOrCreateKey();
   const encryptedBytes = await new File(encryptedUri).bytes();
-  const decrypted = await decryptBytes(encryptedBytes, key);
+  const decrypted = await decryptPhotoBytes(encryptedBytes, key);
   return writePreviewBytes(encryptedUri, decrypted);
 };
 
@@ -260,7 +205,7 @@ const migrateToEncrypted = async (row: PhotoRow) => {
   const key = await getOrCreateKey();
   const sourceBytes = await readUriBytes(row.local_id);
   const encryptedFile = getEncryptedFile(row.local_id);
-  const encryptedBytes = await encryptBytes(sourceBytes, key);
+  const encryptedBytes = await encryptPhotoBytes(sourceBytes, key);
   encryptedFile.write(encryptedBytes);
   await wrAuthDataService.updatePhotoMetadata(row.id, { local_id: encryptedFile.uri });
   try {
@@ -319,10 +264,13 @@ const normalizeCategoryIds = (value: string | string[]) => {
   return raw.map(item => String(item)).filter(Boolean);
 };
 
-const listPhotoRows = async (): Promise<PhotoRow[]> => {
+const listPhotoRows = async (categoryId?: string): Promise<PhotoRow[]> => {
   await ensureSynced();
   const rows = await wrAuthDataService.listPhotoMetadata();
-  const mapped = rows.map(row => ({
+  const filteredRows = categoryId
+    ? rows.filter(row => parseCategoryIds(row.categories).includes(categoryId))
+    : rows;
+  const mapped = filteredRows.map(row => ({
     id: row.id,
     local_id: row.local_id,
     width: row.width,
@@ -353,12 +301,9 @@ const listPhotoRows = async (): Promise<PhotoRow[]> => {
 };
 
 const listPhotos = async (categoryId?: string): Promise<ProgressImage[]> => {
-  const rows = await listPhotoRows();
-  const filtered = categoryId
-    ? rows.filter(row => parseCategoryIds(row.categories).includes(categoryId))
-    : rows;
+  const rows = await listPhotoRows(categoryId);
   const mapped: ProgressImage[] = [];
-  for (const row of filtered) {
+  for (const row of rows) {
     const resolvedUri = await resolvePhotoUri(row);
     if (!resolvedUri) {
       continue;
@@ -381,7 +326,7 @@ const savePhoto = async (
   const key = await getOrCreateKey();
   const sourceBytes = await readUriBytes(compressed.uri);
   const encryptedFile = getEncryptedFile(compressed.uri);
-  const encryptedBytes = await encryptBytes(sourceBytes, key);
+  const encryptedBytes = await encryptPhotoBytes(sourceBytes, key);
   encryptedFile.write(encryptedBytes);
   const storageRef = await uploadEncryptedFileToStorage(encryptedFile.uri);
   const previewBytes = await createPreviewFromUri(compressed.uri);

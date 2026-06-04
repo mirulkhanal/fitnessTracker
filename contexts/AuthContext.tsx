@@ -13,6 +13,11 @@ import { authSessionService } from '@/services/auth-session.service';
 import { biometricAuthService } from '@/services/biometric-auth.service';
 import { dataMigrationService } from '@/services/data-migration.service';
 import { pendingProfileService } from '@/services/pending-profile.service';
+import {
+  clearSessionIfInvalid,
+  executeWithAccessTokenRetry,
+  refreshStoredSessionOnce,
+} from '@/services/wrauth-session-refresh.service';
 import { WrAuthRequestError, wrAuthClient } from '@/services/wrauth.client';
 import type { StoredAuthSession, WrAuthLoginResult } from '@/types/wrauth.types';
 
@@ -92,6 +97,13 @@ const persistSession = async (
     ...(remoteProfile?.id ? { profile_id: remoteProfile.id } : {}),
   };
   await authSessionService.setSession(session);
+  if (await biometricAuthService.isEnabled()) {
+    try {
+      await biometricAuthService.updateRefreshToken(session.refresh_token, session.user.email);
+    } catch {
+      // User may need to re-enable biometrics after login.
+    }
+  }
   void dataMigrationService.migrateLocalDataToWrAuthIfNeeded().catch(error => {
     if (__DEV__) {
       console.warn('[wrAuth] Local data migration failed:', error);
@@ -117,16 +129,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     try {
-      const tokens = await wrAuthClient.refresh(stored.refresh_token);
-      const next = await persistSession(tokens, {
+      const next = await refreshStoredSessionOnce({
         display_name: stored.display_name,
         avatar_url: stored.avatar_url,
         bio: stored.bio,
+        profile_id: stored.profile_id,
       });
-      setSession(next);
+      if (next) {
+        setSession(next);
+      }
     } catch (error) {
-      if (error instanceof WrAuthRequestError) {
-        await authSessionService.setSession(null);
+      if (await clearSessionIfInvalid(error)) {
         setSession(null);
       }
       throw error;
@@ -210,7 +223,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!session?.access_token) {
         throw new Error('Sign in to update your profile.');
       }
-      const remote = await wrAuthClient.upsertProfile(session.access_token, updates);
+      const remote = await executeWithAccessTokenRetry(accessToken =>
+        wrAuthClient.upsertProfile(accessToken, updates)
+      );
       const next: StoredAuthSession = {
         ...session,
         ...(updates.display_name !== undefined

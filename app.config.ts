@@ -2,9 +2,12 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 const wrauthApiUrl = process.env.EXPO_PUBLIC_WRAUTH_API_URL?.trim() ?? '';
 const wrauthAppKey = process.env.EXPO_PUBLIC_WRAUTH_APP_KEY?.trim() ?? '';
+
+/** `__DEV__` is not available when Node evaluates app.config — use build env instead. */
+const isEasProductionBuild = process.env.EAS_BUILD_PROFILE === 'production';
 const allowCleartext =
-  process.env.EXPO_PUBLIC_ALLOW_CLEARTEXT === 'true' ||
-  wrauthApiUrl.startsWith('http://');
+  !isEasProductionBuild &&
+  (process.env.EXPO_PUBLIC_ALLOW_CLEARTEXT === 'true' || wrauthApiUrl.startsWith('http://'));
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -12,6 +15,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'FitnessTracker',
   userInterfaceStyle: 'dark',
   icon: './assets/images/icon.png',
+  updates: {
+    url: 'https://u.expo.dev/02087f60-dc6c-4250-8815-980529edc4c9',
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 0,
+  },
   ios: {
     ...config.ios,
     bundleIdentifier: 'com.fittrack.progress',
@@ -33,9 +41,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     ...(allowCleartext ? { usesCleartextTraffic: true } : {}),
+    allowBackup: false,
   } as ExpoConfig['android'],
   plugins: [
     ...(config.plugins ?? []),
+    'expo-updates',
     [
       'expo-build-properties',
       {
@@ -43,7 +53,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           usesCleartextTraffic: allowCleartext,
           enableMinifyInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
+          extraProguardRules: './android/proguard-rules.pro',
         },
+      },
+    ],
+    [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'Allow FitTrack Progress to access photos you choose for progress tracking and your profile avatar.',
+        cameraPermission:
+          'Allow FitTrack Progress to take progress photos and profile pictures with your camera.',
       },
     ],
     [
@@ -81,5 +101,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     router: {},
     wrauthApiUrl,
     wrauthAppKey,
+    eas: {
+      projectId: '02087f60-dc6c-4250-8815-980529edc4c9',
+      ...(typeof config.extra === 'object' && config.extra && 'eas' in config.extra
+        ? (config.extra as { eas?: object }).eas
+        : {}),
+    },
   },
 });

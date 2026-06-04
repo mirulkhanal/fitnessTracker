@@ -28,6 +28,9 @@
     "runtimeVersion": {
       "policy": "appVersion"
     },
+    "updates": {
+      "url": "https://u.expo.dev/02087f60-dc6c-4250-8815-980529edc4c9"
+    },
     "plugins": [
       "expo-router",
       "expo-sqlite",

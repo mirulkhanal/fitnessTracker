@@ -1,6 +1,8 @@
-# Releasing FitTrack Progress (Android APK)
+# Releasing FitTrack Progress (Android)
 
-Users install the **APK** from GitHub Releases on their Android device (enable “Install unknown apps” for the browser or Files app you use to open the APK).
+**Production** EAS builds use **Android App Bundle (AAB)** for Google Play. **Preview** and **development** profiles may still produce APKs for sideloading.
+
+Set `EXPO_PUBLIC_PRIVACY_POLICY_URL` to your hosted `PRIVACY.md` (or equivalent) before Play submission. Account deletion is available in **Settings → Delete account**.
 
 ## One-time setup
 

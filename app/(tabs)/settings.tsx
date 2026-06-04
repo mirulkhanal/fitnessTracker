@@ -46,6 +46,7 @@ export default function SettingsScreen() {
     handleExportData,
     handleAbout,
     handlePrivacy,
+    handleDeleteAccount,
     handleSignOut,
     isDarkMode,
     toggleTheme,
@@ -100,7 +101,11 @@ export default function SettingsScreen() {
           onToggleBiometric={handleToggleBiometric}
         />
         <DataManagementSection onExport={handleExportData} />
-        <AccountSection onSignOut={handleSignOut} />
+        <AccountSection
+          signedIn={signedIn}
+          onSignOut={handleSignOut}
+          onDeleteAccount={handleDeleteAccount}
+        />
         <AboutSection onAbout={handleAbout} onPrivacy={handlePrivacy} />
         <SettingsFooter />
       </ScrollView>
