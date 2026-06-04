@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 
+import { useAppLock } from '@/contexts/AppLockContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useErrorAlert } from '@/hooks/use-error-alert';
 import { biometricAuthService } from '@/services/biometric-auth.service';
@@ -9,7 +10,8 @@ import { wrauthConfigured } from '@/services/wrauth.config';
 
 export const useSignInForm = () => {
   const router = useRouter();
-  const { applyLoginResult } = useAuth();
+  const { applyLoginResult, isAuthenticated, refreshSession, session } = useAuth();
+  const { isLocked, releaseLock } = useAppLock();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,6 +88,7 @@ export const useSignInForm = () => {
         return;
       }
       setPassword('');
+      releaseLock();
       router.replace('/(tabs)');
     } catch (authError) {
       setErrorTitle('Sign in failed');
@@ -101,7 +104,7 @@ export const useSignInForm = () => {
     } finally {
       setLoading(false);
     }
-  }, [applyLoginResult, email, password, router]);
+  }, [applyLoginResult, email, password, releaseLock, router]);
 
   const handleBiometricSignIn = useCallback(async () => {
     if (!wrauthConfigured) {
@@ -114,7 +117,20 @@ export const useSignInForm = () => {
     setError(null);
     setErrorTitle(null);
     try {
-      const credentials = await biometricAuthService.unlockCredentials();
+      await biometricAuthService.authenticateUser('Unlock FitTrack Progress');
+
+      if (isLocked && isAuthenticated && session?.refresh_token) {
+        try {
+          await refreshSession();
+        } catch {
+          // Offline or expired refresh — still allow unlock if session exists locally.
+        }
+        releaseLock();
+        router.replace('/(tabs)');
+        return;
+      }
+
+      const credentials = await biometricAuthService.getStoredCredentials();
       const tokens = await wrAuthClient.refresh(credentials.refresh_token);
       const outcome = await applyLoginResult(tokens);
       if (outcome === 'mfa_required') {
@@ -128,6 +144,7 @@ export const useSignInForm = () => {
         return;
       }
       setEmail(credentials.email);
+      releaseLock();
       router.replace('/(tabs)');
     } catch (authError) {
       setErrorTitle('Biometric sign-in failed');
@@ -147,7 +164,15 @@ export const useSignInForm = () => {
     } finally {
       setBiometricLoading(false);
     }
-  }, [applyLoginResult, router]);
+  }, [
+    applyLoginResult,
+    isAuthenticated,
+    isLocked,
+    refreshSession,
+    releaseLock,
+    router,
+    session?.refresh_token,
+  ]);
 
   return {
     email,

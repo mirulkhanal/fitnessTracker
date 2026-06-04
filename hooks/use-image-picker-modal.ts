@@ -1,9 +1,11 @@
 import { useAlert } from '@/contexts/AlertContext';
+import { useAppLock } from '@/contexts/AppLockContext';
 import { PhotoCaptureResult } from '@/types/progress.interface';
 import * as ImagePicker from 'expo-image-picker';
 
 export const useImagePickerModal = () => {
   const { showAlert } = useAlert();
+  const { runWithLockSuspended } = useAppLock();
 
   const requestPermissions = async (): Promise<boolean> => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -25,20 +27,22 @@ export const useImagePickerModal = () => {
     if (!hasPermission) return null;
 
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.8,
-      });
+      return await runWithLockSuspended(async () => {
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 0.8,
+        });
 
-      if (!result.canceled && result.assets[0]) {
-        return {
-          uri: result.assets[0].uri,
-          width: result.assets[0].width || 0,
-          height: result.assets[0].height || 0,
-        };
-      }
-      return null;
+        if (!result.canceled && result.assets[0]) {
+          return {
+            uri: result.assets[0].uri,
+            width: result.assets[0].width || 0,
+            height: result.assets[0].height || 0,
+          };
+        }
+        return null;
+      });
     } catch (error) {
       console.error('Camera error:', error);
       showAlert({
@@ -55,20 +59,22 @@ export const useImagePickerModal = () => {
     if (!hasPermission) return null;
 
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: false,
-        quality: 0.8,
-      });
+      return await runWithLockSuspended(async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: false,
+          quality: 0.8,
+        });
 
-      if (!result.canceled && result.assets[0]) {
-        return {
-          uri: result.assets[0].uri,
-          width: result.assets[0].width || 0,
-          height: result.assets[0].height || 0,
-        };
-      }
-      return null;
+        if (!result.canceled && result.assets[0]) {
+          return {
+            uri: result.assets[0].uri,
+            width: result.assets[0].width || 0,
+            height: result.assets[0].height || 0,
+          };
+        }
+        return null;
+      });
     } catch (error) {
       console.error('Gallery error:', error);
       showAlert({

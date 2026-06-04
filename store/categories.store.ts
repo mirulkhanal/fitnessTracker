@@ -2,7 +2,6 @@ import { categoriesService } from '@/services/categories.service';
 import { photosService } from '@/services/photos.service';
 import { Category, CategoryStats, CreateCategoryRequest } from '@/types/category.types';
 import { LoadingState } from '@/types/common.types';
-import { ProgressImage } from '@/types/photo.types';
 import { create } from 'zustand';
 
 interface CategoriesStore extends LoadingState {
@@ -46,15 +45,15 @@ export const useCategoriesStore = create<CategoriesStore>((set, get) => ({
     try {
       const categories = await categoriesService.listCategories();
       set({ categories });
-      let allImages: ProgressImage[] = [];
+      let photoStats: Awaited<ReturnType<typeof photosService.listPhotoCategoryStats>> = [];
       try {
-        allImages = await photosService.listPhotos();
+        photoStats = await photosService.listPhotoCategoryStats();
       } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to load photos' });
       }
       
       const stats: CategoryStats[] = categories.map(category => {
-        const categoryImages = allImages.filter(img => img.categories.includes(category.id));
+        const categoryImages = photoStats.filter(img => img.categories.includes(category.id));
         
         const lastPhotoDate = categoryImages.length > 0 
           ? Math.max(...categoryImages.map(img => img.timestamp))

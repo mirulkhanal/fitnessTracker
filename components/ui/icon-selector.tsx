@@ -1,4 +1,4 @@
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { FitnessCategoryIcon } from '@/components/icons/FitnessCategoryIcon';
 import { ThemedText } from '@/components/ui/themed-text';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -67,7 +67,7 @@ export const IconSelector: React.FC<IconSelectorProps> = ({
               ]}
               onPress={() => onIconSelect(icon, iconColor)}
             >
-              <IconSymbol name={icon as any} size={24} color={iconColor} />
+              <FitnessCategoryIcon iconId={icon} size={24} color={iconColor} />
             </TouchableOpacity>
           );
         })}

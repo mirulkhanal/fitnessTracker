@@ -2,6 +2,7 @@ import { FitnessIconPicker } from '@/components/icons/FitnessIconPicker';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { HapticButton } from '@/components/ui/haptic-button';
+import { FitnessCategoryIcon } from '@/components/icons/FitnessCategoryIcon';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Input } from '@/components/ui/Input';
 import { ThemedText } from '@/components/ui/themed-text';
@@ -59,7 +60,7 @@ export function CategoryGrid({ categories, selectedCategories, onSelect }: Categ
             >
               <View style={styles.categoryCardContent}>
                 <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
-                  <IconSymbol name={category.icon as any} size={28} color="white" />
+                  <FitnessCategoryIcon iconId={category.icon} size={28} color="white" />
                 </View>
                 <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
                 {selectedCategories.includes(category.id) ? (

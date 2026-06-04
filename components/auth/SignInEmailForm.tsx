@@ -1,8 +1,10 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface SignInEmailFormProps {
   email: string;
@@ -31,16 +33,11 @@ export function SignInEmailForm({
   onCreateAccount,
   onForgotPassword,
 }: SignInEmailFormProps) {
+  const { colors } = useTheme();
+  const showBiometricButton = biometricEnabled && Boolean(onBiometricSignIn);
+
   return (
     <View style={styles.formSection}>
-      {biometricEnabled && onBiometricSignIn ? (
-        <Button
-          title={`Sign in with ${biometricLabel}`}
-          onPress={onBiometricSignIn}
-          loading={loading}
-          variant="outline"
-        />
-      ) : null}
       <Input
         label="Email"
         value={email}
@@ -56,7 +53,26 @@ export function SignInEmailForm({
         secureTextEntry
       />
       <View style={styles.emailButtons}>
-        <Button title="Sign in" onPress={onSubmit} loading={loading} />
+        <View style={styles.signInRow}>
+          <Button
+            title="Sign in"
+            onPress={onSubmit}
+            loading={loading}
+            style={styles.signInButton}
+          />
+          {showBiometricButton ? (
+            <TouchableOpacity
+              style={[styles.biometricButton, { borderColor: colors.border }]}
+              onPress={onBiometricSignIn}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel={`Sign in with ${biometricLabel}`}
+              activeOpacity={0.8}
+            >
+              <IconSymbol name="touchid" size={28} color={colors.accent} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
         <Button title="Forgot password?" onPress={onForgotPassword} variant="outline" />
         <Button title="Create account" onPress={onCreateAccount} variant="outline" loading={loading} />
       </View>
@@ -70,5 +86,21 @@ const styles = StyleSheet.create({
   },
   emailButtons: {
     gap: 12,
+  },
+  signInRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 10,
+  },
+  signInButton: {
+    flex: 1,
+  },
+  biometricButton: {
+    width: 52,
+    minHeight: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

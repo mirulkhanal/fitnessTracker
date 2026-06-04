@@ -1,4 +1,5 @@
 import { databaseService } from '@/services/database.service';
+import { workoutNotificationService } from '@/services/workout-notification.service';
 
 class AppService {
   private isInitialized = false;
@@ -21,6 +22,8 @@ class AppService {
         console.log('[app] initializing…');
       }
       await databaseService.init();
+      await workoutNotificationService.initialize();
+      await workoutNotificationService.syncFromStorage();
       this.isInitialized = true;
       if (__DEV__) {
         console.log('[app] ready');

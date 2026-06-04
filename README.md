@@ -60,7 +60,9 @@ curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
 
 ## wrAuth data tables (categories, photos, streaks)
 
-Categories and photo **metadata** live in wrAuth (`/data/categories`, `/data/photo_metadata`). **Day streak**, **total photos**, and **last photo** are computed from metadata rows that have accessible media (local cache or wrAuth storage) — not stored as separate counters.
+Categories and photo **metadata** live in wrAuth (`/data/categories`, `/data/photo_metadata`). **Day streak**, **total photos**, and **last photo** are computed from metadata rows that have accessible media (local cache or wrAuth storage) — not stored as separate counters. After you save **Workout reminders**, streaks only count photos on your selected workout days (weekends/off days do not break the streak).
+
+**Workout reminders** use `expo-notifications` for local weekly alarms. Grant notification permission on a physical device; tap the bell icon or open **Settings → Workout reminders** to set time and days.
 
 **Per-user privacy:** wrAuth automatically adds an `owner_user_id` system column to every data table (new and existing). List/create/update/delete APIs only return rows owned by the signed-in user when that column is present.
 

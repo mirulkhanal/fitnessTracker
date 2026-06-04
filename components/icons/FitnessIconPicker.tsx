@@ -1,5 +1,5 @@
 import { fitnessIconIds } from '@/components/icons/custom-icons';
-import { IconSymbol } from '@/components/ui/icon-symbol';
+import { FitnessCategoryIcon } from '@/components/icons/FitnessCategoryIcon';
 import { FitTrackColors } from '@/constants/fittrack-theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -58,8 +58,8 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
             selected && styles.fittrackTileSelected,
           ]}
         >
-          <IconSymbol
-            name={item as React.ComponentProps<typeof IconSymbol>['name']}
+          <FitnessCategoryIcon
+            iconId={item}
             size={28}
             color={selected ? FitTrackColors.primaryContainer : FitTrackColors.onSurfaceVariant}
           />
@@ -99,7 +99,7 @@ export const FitnessIconPicker: React.FC<FitnessIconPickerProps> = ({
           }}
           onPress={handlePress}
         >
-          <IconSymbol name={item as React.ComponentProps<typeof IconSymbol>['name']} size={34} color={iconColor} />
+          <FitnessCategoryIcon iconId={item} size={34} color={iconColor} />
         </TouchableOpacity>
       </TouchableOpacity>
     );

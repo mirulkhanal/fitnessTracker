@@ -7,6 +7,7 @@ import { wrAuthStorageService } from '@/services/wrauth-storage.service';
 import { ProgressImage } from '@/types/photo.types';
 import { base64ToBytes } from '@/utils/bytes-base64';
 import { parseCategoryIds, serializeCategoryIds } from '@/utils/parse-category-ids';
+import { compressImageForStorage, createPreviewFromUri } from '@/utils/compress-image';
 import { parseTimestampMs } from '@/utils/parse-timestamp';
 import * as Crypto from 'expo-crypto';
 import { Directory, File, Paths, readAsStringAsync } from 'expo-file-system';
@@ -123,7 +124,7 @@ const xorBytes = (left: Uint8Array, right: Uint8Array) => {
 };
 
 const deriveKeystream = async (key: Uint8Array, nonce: Uint8Array, length: number) => {
-  const blockSize = 32;
+  const blockSize = 4096;
   const blocks = Math.ceil(length / blockSize);
   const output = new Uint8Array(length);
   let offset = 0;
@@ -235,6 +236,12 @@ const getPreviewFileForEncrypted = (encryptedUri: string) => {
   return new File(PREVIEW_DIR, previewName);
 };
 
+const writePreviewBytes = (encryptedUri: string, previewBytes: Uint8Array) => {
+  const previewFile = getPreviewFileForEncrypted(encryptedUri);
+  previewFile.write(previewBytes);
+  return previewFile.uri;
+};
+
 const ensurePreviewUri = async (encryptedUri: string) => {
   const previewFile = getPreviewFileForEncrypted(encryptedUri);
   if (previewFile.exists) {
@@ -243,8 +250,7 @@ const ensurePreviewUri = async (encryptedUri: string) => {
   const key = await getOrCreateKey();
   const encryptedBytes = await new File(encryptedUri).bytes();
   const decrypted = await decryptBytes(encryptedBytes, key);
-  previewFile.write(decrypted);
-  return previewFile.uri;
+  return writePreviewBytes(encryptedUri, decrypted);
 };
 
 const migrateToEncrypted = async (row: PhotoRow) => {
@@ -371,23 +377,31 @@ const savePhoto = async (
   await ensureSynced();
   const capturedAt = new Date().toISOString();
   const normalizedCategoryIds = normalizeCategoryIds(categories);
+  const compressed = await compressImageForStorage(imageUri);
   const key = await getOrCreateKey();
-  const sourceBytes = await readUriBytes(imageUri);
-  const encryptedFile = getEncryptedFile(imageUri);
+  const sourceBytes = await readUriBytes(compressed.uri);
+  const encryptedFile = getEncryptedFile(compressed.uri);
   const encryptedBytes = await encryptBytes(sourceBytes, key);
   encryptedFile.write(encryptedBytes);
   const storageRef = await uploadEncryptedFileToStorage(encryptedFile.uri);
-  if (imageUri.startsWith('file://') && !isEncryptedUri(imageUri)) {
-    try {
-      new File(imageUri).delete();
-    } catch {}
+  const previewBytes = await createPreviewFromUri(compressed.uri);
+  const previewUri = writePreviewBytes(encryptedFile.uri, previewBytes);
+
+  for (const uri of [imageUri, compressed.uri]) {
+    if (uri.startsWith('file://') && !isEncryptedUri(uri) && uri !== previewUri) {
+      try {
+        new File(uri).delete();
+      } catch {}
+    }
   }
 
+  const photoWidth = compressed.width || width;
+  const photoHeight = compressed.height || height;
   const categoriesJson = serializeCategoryIds(normalizedCategoryIds);
   const remoteRow = await wrAuthDataService.createPhotoMetadata({
     local_id: storageRef,
-    width,
-    height,
+    width: photoWidth,
+    height: photoHeight,
     captured_at: capturedAt,
     categories: categoriesJson,
   });
@@ -395,13 +409,12 @@ const savePhoto = async (
   const row: PhotoRow = {
     id: remoteRow.id,
     local_id: storageRef,
-    width,
-    height,
+    width: photoWidth,
+    height: photoHeight,
     captured_at: capturedAt,
     categories: normalizedCategoryIds,
   };
 
-  const previewUri = await ensurePreviewUri(encryptedFile.uri);
   return mapPhoto(row, previewUri);
 };
 
@@ -472,10 +485,24 @@ const listAvailablePhotoTimestamps = async (): Promise<number[]> => {
     .filter(value => value > 0);
 };
 
+export type PhotoCategoryStat = {
+  categories: string[];
+  timestamp: number;
+};
+
+const listPhotoCategoryStats = async (): Promise<PhotoCategoryStat[]> => {
+  const rows = await listPhotoRows();
+  return rows.map(row => ({
+    categories: parseCategoryIds(row.categories),
+    timestamp: parseTimestampMs(row.captured_at),
+  }));
+};
+
 export const photosService = {
   listPhotos,
   savePhoto,
   deletePhoto,
   removeCategoryFromPhotos,
   listAvailablePhotoTimestamps,
+  listPhotoCategoryStats,
 };

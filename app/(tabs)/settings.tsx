@@ -1,32 +1,39 @@
 import { HomeTopBar } from '@/components/home/HomeTopBar';
+import { ProfileEditModal } from '@/components/settings/ProfileEditModal';
 import {
   AboutSection,
   AccountSection,
   DataManagementSection,
   PreferencesSection,
-  ProfileEditSection,
+  ProfileCardSection,
   SecuritySection,
   SettingsFooter,
   SettingsHeader,
 } from '@/components/settings/SettingsSections';
 import { FitTrackColors } from '@/constants/fittrack-theme';
-import { useAlert } from '@/contexts/AlertContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBiometricLoginSetting } from '@/hooks/use-biometric-login-setting';
+import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 import { useSettingsActions } from '@/hooks/use-settings-actions';
+import { useWorkoutReminders } from '@/hooks/use-workout-reminders';
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 const HEADER_OFFSET = 108;
 
 export default function SettingsScreen() {
-  const { showAlert } = useAlert();
   const { session } = useAuth();
   const displayName = session?.display_name?.trim() || 'Athlete';
 
   const {
     signedIn,
     email,
+    profileDisplayName,
+    profileBio,
+    profileAvatarUri,
+    profileEditVisible,
+    openProfileEdit,
+    closeProfileEdit,
     displayNameDraft,
     bioDraft,
     avatarUriDraft,
@@ -36,8 +43,6 @@ export default function SettingsScreen() {
     setBioDraft,
     handlePickAvatar,
     handleSaveProfile,
-    notificationsEnabled,
-    setNotificationsEnabled,
     handleExportData,
     handleAbout,
     handlePrivacy,
@@ -53,6 +58,8 @@ export default function SettingsScreen() {
     toggling: biometricToggling,
     handleToggle: handleToggleBiometric,
   } = useBiometricLoginSetting();
+  const openWorkoutReminders = useOpenWorkoutReminders();
+  const { summary: workoutRemindersSummary } = useWorkoutReminders();
 
   return (
     <View style={styles.container}>
@@ -60,13 +67,7 @@ export default function SettingsScreen() {
         avatarUrl={session?.avatar_url ?? avatarUriDraft}
         displayName={displayName}
         onProfilePress={() => {}}
-        onNotificationsPress={() => {
-          showAlert({
-            title: 'Notifications',
-            message: 'Workout reminders are coming in a future update.',
-            variant: 'info',
-          });
-        }}
+        onNotificationsPress={openWorkoutReminders}
       />
 
       <ScrollView
@@ -76,22 +77,17 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <SettingsHeader />
-        <ProfileEditSection
+        <ProfileCardSection
           signedIn={signedIn}
           email={email}
-          displayName={displayNameDraft}
-          bio={bioDraft}
-          avatarUri={avatarUriDraft}
-          saving={savingProfile}
-          canSave={canSaveProfile}
-          onDisplayNameChange={setDisplayNameDraft}
-          onBioChange={setBioDraft}
-          onPickAvatar={handlePickAvatar}
-          onSave={handleSaveProfile}
+          displayName={profileDisplayName}
+          bio={profileBio}
+          avatarUri={profileAvatarUri}
+          onEdit={openProfileEdit}
         />
         <PreferencesSection
-          notificationsEnabled={notificationsEnabled}
-          onToggleNotifications={setNotificationsEnabled}
+          workoutRemindersSummary={workoutRemindersSummary}
+          onOpenWorkoutReminders={openWorkoutReminders}
           isDarkMode={isDarkMode}
           onToggleTheme={toggleTheme}
         />
@@ -108,6 +104,21 @@ export default function SettingsScreen() {
         <AboutSection onAbout={handleAbout} onPrivacy={handlePrivacy} />
         <SettingsFooter />
       </ScrollView>
+
+      <ProfileEditModal
+        visible={profileEditVisible}
+        email={email}
+        displayName={displayNameDraft}
+        bio={bioDraft}
+        avatarUri={avatarUriDraft}
+        saving={savingProfile}
+        canSave={canSaveProfile}
+        onDisplayNameChange={setDisplayNameDraft}
+        onBioChange={setBioDraft}
+        onPickAvatar={handlePickAvatar}
+        onSave={handleSaveProfile}
+        onClose={closeProfileEdit}
+      />
     </View>
   );
 }

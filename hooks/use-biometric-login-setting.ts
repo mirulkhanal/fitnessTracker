@@ -67,7 +67,7 @@ export const useBiometricLoginSetting = () => {
           setEnabled(true);
           showAlert({
             title: `${loginLabel} enabled`,
-            message: `You can sign in with ${loginLabel.toLowerCase()} on this device after signing out.`,
+            message: `FitTrack will ask for ${loginLabel.toLowerCase()} when you open the app. You stay signed in without re-entering your password.`,
             variant: 'success',
           });
         } else {

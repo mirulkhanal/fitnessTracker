@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useAlert } from '@/contexts/AlertContext';
+import { useAppLock } from '@/contexts/AppLockContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { avatarUploadService } from '@/services/avatar-upload.service';
@@ -11,13 +12,14 @@ import { useRouter } from 'expo-router';
 export const useSettingsActions = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
   const { showAlert } = useAlert();
+  const { runWithLockSuspended } = useAppLock();
   const { session, signOut, updateProfile } = useAuth();
   const router = useRouter();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [displayNameDraft, setDisplayNameDraft] = useState('');
   const [bioDraft, setBioDraft] = useState('');
   const [avatarUriDraft, setAvatarUriDraft] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [profileEditVisible, setProfileEditVisible] = useState(false);
 
   const signedIn = Boolean(session?.user);
   const email = session?.user?.email ?? 'Not signed in';
@@ -62,17 +64,44 @@ export const useSettingsActions = () => {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    await runWithLockSuspended(async () => {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets.length > 0) {
-      setAvatarUriDraft(result.assets[0].uri);
+      if (!result.canceled && result.assets.length > 0) {
+        setAvatarUriDraft(result.assets[0].uri);
+      }
+    });
+  }, [runWithLockSuspended, showAlert, signedIn]);
+
+  const resetProfileDrafts = useCallback(() => {
+    if (!session?.user) {
+      setDisplayNameDraft('');
+      setBioDraft('');
+      setAvatarUriDraft(null);
+      return;
     }
-  }, [showAlert, signedIn]);
+    setDisplayNameDraft(session.display_name ?? '');
+    setBioDraft(session.bio ?? '');
+    setAvatarUriDraft(session.avatar_url ?? null);
+  }, [session]);
+
+  const openProfileEdit = useCallback(() => {
+    if (!signedIn) {
+      return;
+    }
+    resetProfileDrafts();
+    setProfileEditVisible(true);
+  }, [resetProfileDrafts, signedIn]);
+
+  const closeProfileEdit = useCallback(() => {
+    setProfileEditVisible(false);
+    resetProfileDrafts();
+  }, [resetProfileDrafts]);
 
   const handleSaveProfile = useCallback(async () => {
     if (!signedIn || !canSaveProfile) {
@@ -96,6 +125,7 @@ export const useSettingsActions = () => {
         bio: bioDraft.trim() || null,
         avatar_url: avatarUrl,
       });
+      setProfileEditVisible(false);
       showAlert({
         title: 'Profile saved',
         message: 'Your profile was updated.',
@@ -125,6 +155,10 @@ export const useSettingsActions = () => {
     signedIn,
     updateProfile,
   ]);
+
+  const profileDisplayName = session?.display_name ?? '';
+  const profileBio = session?.bio ?? null;
+  const profileAvatarUri = session?.avatar_url ?? null;
 
   const handleExportData = useCallback(() => {
     showAlert({
@@ -159,7 +193,7 @@ export const useSettingsActions = () => {
     showAlert({
       title: 'Privacy Policy',
       message:
-        'Progress photos are encrypted on this device. Categories and photo records sync to your wrAuth account. Optional fingerprint sign-in stores a device-protected refresh token only on this phone.',
+        'Progress photos are encrypted on this device. Categories and photo records sync to your wrAuth account. Optional fingerprint unlock keeps you signed in but requires biometrics whenever you open the app.',
       variant: 'info',
     });
   }, [showAlert]);
@@ -190,10 +224,14 @@ export const useSettingsActions = () => {
     canSaveProfile,
     setDisplayNameDraft,
     setBioDraft,
+    profileDisplayName,
+    profileBio,
+    profileAvatarUri,
+    profileEditVisible,
+    openProfileEdit,
+    closeProfileEdit,
     handlePickAvatar,
     handleSaveProfile,
-    notificationsEnabled,
-    setNotificationsEnabled,
     handleExportData,
     handleAbout,
     handlePrivacy,

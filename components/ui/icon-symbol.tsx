@@ -1,6 +1,5 @@
-// Fallback for using MaterialIcons on Android and web.
+// Material icon mapping for navigation and UI (fitness SVGs live in FitnessCategoryIcon).
 
-import { customIcons } from '@/components/icons/custom-icons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { SymbolWeight } from 'expo-symbols';
 import React, { ComponentProps } from 'react';
@@ -56,6 +55,9 @@ const MAPPING = {
   'square.grid.2x2': 'apps',
   'magnifyingglass': 'search',
   'clock.fill': 'schedule',
+  'chart.line.uptrend.xyaxis': 'insights',
+  'pause.fill': 'pause',
+  'play.fill': 'play-arrow',
 } as const satisfies Record<string, MaterialIconName>;
 
 type IconSymbolName = keyof typeof MAPPING;
@@ -77,21 +79,5 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  const Custom = (customIcons as any)[name];
-  if (Custom) {
-    const strokeColor = typeof color === 'string' ? (color as string) : '#FFFFFF';
-    // Force outline-only by wrapping with explicit fill/stroke overrides
-    return (
-      <Custom
-        width={size}
-        height={size}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth={2 as any}
-        color={strokeColor as any}
-        fillRule="evenodd"
-      />
-    );
-  }
   return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }

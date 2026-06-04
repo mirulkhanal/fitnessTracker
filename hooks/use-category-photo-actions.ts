@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useAlert } from '@/contexts/AlertContext';
 import { useImagePickerModal } from '@/hooks/use-image-picker-modal';
 import { useRefreshOnFocus } from '@/hooks/use-refresh-on-focus';
-import { useCategoriesStore } from '@/store/categories.store';
-import { usePhotosStore } from '@/store/photos.store';
+import { EMPTY_PROGRESS_PHOTOS, usePhotosStore } from '@/store/photos.store';
 
 const normalizeRouteParam = (value: string | string[] | undefined): string => {
   if (Array.isArray(value)) {
@@ -17,24 +16,25 @@ export const useCategoryPhotoActions = (categoryIdParam: string | string[] | und
   const categoryId = normalizeRouteParam(categoryIdParam);
   const { showAlert } = useAlert();
   const { handleCameraPress, handleGalleryPress } = useImagePickerModal();
-  const { loading, getPhotosByCategory, savePhoto, deletePhoto, loadPhotos } = usePhotosStore();
-  const { loadCategoryStats } = useCategoriesStore();
+  const photos = usePhotosStore(state =>
+    categoryId
+      ? (state.categoryPhotos[categoryId] ?? EMPTY_PROGRESS_PHOTOS)
+      : EMPTY_PROGRESS_PHOTOS
+  );
+  const loading = usePhotosStore(state =>
+    categoryId ? Boolean(state.categoryLoading[categoryId]) : false
+  );
+  const { savePhoto, deletePhoto, loadPhotos } = usePhotosStore();
   const [modalVisible, setModalVisible] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!categoryId) {
       return;
     }
-    await Promise.all([loadPhotos(categoryId), loadCategoryStats()]);
-  }, [categoryId, loadCategoryStats, loadPhotos]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    await loadPhotos(categoryId);
+  }, [categoryId, loadPhotos]);
 
   useRefreshOnFocus(refresh, [refresh]);
-
-  const photos = getPhotosByCategory(categoryId);
 
   const handleDeletePhoto = useCallback(
     async (photoId: string) => {
@@ -50,7 +50,9 @@ export const useCategoryPhotoActions = (categoryIdParam: string | string[] | und
             onPress: async () => {
               try {
                 await deletePhoto(photoId);
-                await loadPhotos(categoryId);
+                if (categoryId) {
+                  await loadPhotos(categoryId);
+                }
               } catch (error) {
                 showAlert({
                   title: 'Delete failed',
@@ -71,7 +73,7 @@ export const useCategoryPhotoActions = (categoryIdParam: string | string[] | und
     async (capture: { uri: string; width?: number; height?: number }) => {
       try {
         await savePhoto(capture.uri, categoryId, capture.width || 0, capture.height || 0);
-      } catch (error) {
+      } catch {
         showAlert({
           title: 'Error',
           message: 'Failed to save photo',

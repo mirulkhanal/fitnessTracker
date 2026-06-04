@@ -6,6 +6,7 @@ import { FitTrackColors } from '@/constants/fittrack-theme';
 import { useAlert } from '@/contexts/AlertContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCategoriesScreen } from '@/hooks/use-categories-screen';
+import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 import { CategoryStats } from '@/types/category.types';
 import { router } from 'expo-router';
 import React, { useCallback } from 'react';
@@ -31,6 +32,7 @@ export default function CategoriesScreen() {
     closeModal,
     setModalVisible,
   } = useCategoriesScreen();
+  const openWorkoutReminders = useOpenWorkoutReminders();
 
   const handleCategoryLongPress = useCallback(
     (category: CategoryStats) => {
@@ -80,13 +82,7 @@ export default function CategoriesScreen() {
         avatarUrl={session?.avatar_url}
         displayName={displayName}
         onProfilePress={() => router.push('/(tabs)/settings')}
-        onNotificationsPress={() => {
-          showAlert({
-            title: 'Notifications',
-            message: 'Workout reminders are coming in a future update.',
-            variant: 'info',
-          });
-        }}
+        onNotificationsPress={openWorkoutReminders}
       />
 
       <View style={[styles.body, { paddingTop: HEADER_OFFSET }]}>

@@ -15,17 +15,19 @@ export interface LatestPhotoInfo {
 
 export const useHomeData = () => {
   const { categories, loadCategories } = useCategoriesStore();
+  const photosLoading = usePhotosStore(state => state.loading);
+  const hasPhotos = usePhotosStore(state => state.photos.length > 0);
   const { getValidCategories, getLatestPhoto, loadPhotos, deletePhoto } = usePhotosStore();
   const { stats, loadStats } = useStatsStore();
-  const [loading, setLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    setStatsLoading(true);
     try {
       await appService.waitForInitialization();
       await Promise.all([loadPhotos(), loadCategories(), loadStats()]);
     } finally {
-      setLoading(false);
+      setStatsLoading(false);
     }
   }, [loadCategories, loadPhotos, loadStats]);
 
@@ -65,12 +67,16 @@ export const useHomeData = () => {
     return date.toLocaleDateString();
   };
 
+  const isInitialLoad = (photosLoading || statsLoading) && !hasPhotos && stats.totalPhotos === 0;
+  const isRefreshing = (photosLoading || statsLoading) && (hasPhotos || stats.totalPhotos > 0);
+
   return {
     categories,
     stats,
     latestPhoto: latestPhotoInfo,
     lastPhotoLabel: formatLastPhotoLabel(stats.lastPhotoDate),
-    loading,
+    isInitialLoad,
+    isRefreshing,
     deletePhoto,
     refresh,
   };

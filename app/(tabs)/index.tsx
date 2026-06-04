@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HomeFab } from '@/components/home/HomeFab';
 import { HomeLatestProgress } from '@/components/home/HomeLatestProgress';
@@ -9,11 +9,12 @@ import { HomeTopBar } from '@/components/home/HomeTopBar';
 import { HomeWelcome } from '@/components/home/HomeWelcome';
 import { PhotoSourceModal } from '@/components/modals/photo-source-modal';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
-import { FitTrackColors } from '@/constants/fittrack-theme';
+import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
 import { useAlert } from '@/contexts/AlertContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHomeData } from '@/hooks/use-home-data';
 import { useImagePickerModal } from '@/hooks/use-image-picker-modal';
+import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 
 const HEADER_OFFSET = 108;
 
@@ -22,8 +23,10 @@ export default function HomeScreen() {
   const { session } = useAuth();
   const [modalVisible, setModalVisible] = useState(false);
 
+  const openWorkoutReminders = useOpenWorkoutReminders();
   const { handleCameraPress, handleGalleryPress } = useImagePickerModal();
-  const { stats, latestPhoto, lastPhotoLabel, loading, deletePhoto, refresh } = useHomeData();
+  const { stats, latestPhoto, lastPhotoLabel, isInitialLoad, isRefreshing, deletePhoto, refresh } =
+    useHomeData();
 
   const displayName = session?.display_name?.trim() || 'Athlete';
 
@@ -97,16 +100,10 @@ export default function HomeScreen() {
         avatarUrl={session?.avatar_url}
         displayName={displayName}
         onProfilePress={() => router.push('/(tabs)/settings')}
-        onNotificationsPress={() => {
-          showAlert({
-            title: 'Notifications',
-            message: 'Workout reminders are coming in a future update.',
-            variant: 'info',
-          });
-        }}
+        onNotificationsPress={openWorkoutReminders}
       />
 
-      {loading && !latestPhoto && stats.totalPhotos === 0 ? (
+      {isInitialLoad ? (
         <ScreenLoading text="Loading progress..." />
       ) : (
         <ScrollView
@@ -114,6 +111,12 @@ export default function HomeScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {isRefreshing ? (
+            <View style={styles.refreshRow}>
+              <ActivityIndicator size="small" color={FitTrackColors.primaryContainer} />
+              <Text style={styles.refreshText}>Updating progress…</Text>
+            </View>
+          ) : null}
           <HomeWelcome name={displayName} />
           <HomeStatsBento
             totalPhotos={stats.totalPhotos}
@@ -145,6 +148,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: FitTrackColors.background,
+  },
+  refreshRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  refreshText: {
+    fontFamily: FitTrackFonts.body,
+    fontSize: 13,
+    color: FitTrackColors.onSurfaceVariant,
   },
   scroll: {
     flex: 1,

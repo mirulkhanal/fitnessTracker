@@ -4,18 +4,20 @@ import React from 'react';
 import { AnimatedTabBar } from '@/components/navigation/animated-tab-bar';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAppLock } from '@/contexts/AppLockContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TabLayout() {
   const { colors } = useTheme();
   const { isLoading, isAuthenticated } = useAuth();
+  const { isLocked } = useAppLock();
 
   if (isLoading) {
     return <ScreenLoading text="Checking account..." />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || isLocked) {
     return <Redirect href="/sign-in" />;
   }
 
@@ -39,8 +41,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="categories"
         options={{
-          title: 'Explore',
+          title: 'Categories',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="square.grid.2x2" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: 'Progress',
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="chart.line.uptrend.xyaxis" color={color} />
+          ),
         }}
       />
       <Tabs.Screen

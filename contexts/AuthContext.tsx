@@ -10,6 +10,7 @@ import React, {
 
 import { avatarUploadService } from '@/services/avatar-upload.service';
 import { authSessionService } from '@/services/auth-session.service';
+import { biometricAuthService } from '@/services/biometric-auth.service';
 import { dataMigrationService } from '@/services/data-migration.service';
 import { pendingProfileService } from '@/services/pending-profile.service';
 import { WrAuthRequestError, wrAuthClient } from '@/services/wrauth.client';
@@ -251,6 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [session, syncProfileToRemote]);
 
   const signOut = useCallback(async () => {
+    await biometricAuthService.disable();
     const stored = await authSessionService.getSession();
     if (stored?.refresh_token) {
       try {

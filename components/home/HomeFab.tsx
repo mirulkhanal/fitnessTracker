@@ -7,11 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface HomeFabProps {
   onPress: () => void;
+  /** Distance above the safe-area bottom edge. Use a smaller value when there is no tab bar. */
+  bottomOffset?: number;
 }
 
 const TAB_BAR_CLEARANCE = 88;
 
-export function HomeFab({ onPress }: HomeFabProps) {
+export function HomeFab({ onPress, bottomOffset = TAB_BAR_CLEARANCE }: HomeFabProps) {
   const insets = useSafeAreaInsets();
   const scale = useSharedValue(1);
 
@@ -38,7 +40,7 @@ export function HomeFab({ onPress }: HomeFabProps) {
     <Animated.View
       style={[
         styles.wrap,
-        { bottom: TAB_BAR_CLEARANCE + insets.bottom },
+        { bottom: bottomOffset + insets.bottom },
         animatedStyle,
       ]}
     >

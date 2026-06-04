@@ -89,23 +89,15 @@ export const biometricAuthService = {
       throw new Error('Add a fingerprint or face unlock in your device settings first.');
     }
 
-    const confirmation = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Confirm to enable quick sign-in',
-      cancelLabel: 'Cancel',
-      disableDeviceFallback: false,
-    });
-    if (!confirmation.success) {
-      throw new Error('Biometric confirmation was cancelled.');
-    }
-
     const payload: StoredBiometricCredentials = {
       refresh_token: refreshToken,
       email,
     };
 
+    await SecureStore.deleteItemAsync(CREDENTIALS_KEY).catch(() => undefined);
     await SecureStore.setItemAsync(CREDENTIALS_KEY, JSON.stringify(payload), {
       requireAuthentication: true,
-      authenticationPrompt: 'Unlock FitTrack Progress',
+      authenticationPrompt: 'Confirm to enable app unlock',
     });
     await AsyncStorage.multiSet([
       [ENABLED_KEY, 'true'],
@@ -122,20 +114,40 @@ export const biometricAuthService = {
     }
   },
 
-  async unlockCredentials(): Promise<StoredBiometricCredentials> {
+  async authenticateUser(promptMessage: string): Promise<void> {
+    if (!(await this.isEnabled())) {
+      throw new Error('App unlock is not enabled.');
+    }
+    const availability = await this.getAvailability();
+    if (availability !== 'available') {
+      throw new Error('Biometrics are not available on this device.');
+    }
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage,
+      cancelLabel: 'Cancel',
+      disableDeviceFallback: false,
+    });
+    if (!result.success) {
+      throw new Error('Biometric verification was cancelled.');
+    }
+  },
+
+  async getStoredCredentials(): Promise<StoredBiometricCredentials> {
     if (!(await this.isEnabled())) {
       throw new Error('Biometric sign-in is not enabled.');
     }
 
-    const raw = await SecureStore.getItemAsync(CREDENTIALS_KEY, {
-      requireAuthentication: true,
-      authenticationPrompt: 'Sign in to FitTrack Progress',
-    });
+    const raw = await SecureStore.getItemAsync(CREDENTIALS_KEY);
     const credentials = parseCredentials(raw);
     if (!credentials) {
       await this.disable();
       throw new Error('Saved sign-in is no longer valid. Sign in with your password and enable biometrics again.');
     }
     return credentials;
+  },
+
+  async unlockCredentials(): Promise<StoredBiometricCredentials> {
+    await this.authenticateUser('Unlock FitTrack Progress');
+    return this.getStoredCredentials();
   },
 };

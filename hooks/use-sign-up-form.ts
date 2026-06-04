@@ -2,8 +2,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { useAuth } from '@/contexts/AuthContext';
 import { useAlert } from '@/contexts/AlertContext';
+import { useAppLock } from '@/contexts/AppLockContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useErrorAlert } from '@/hooks/use-error-alert';
 import { pendingProfileService } from '@/services/pending-profile.service';
 import { WrAuthRequestError, wrAuthClient } from '@/services/wrauth.client';
@@ -13,6 +14,7 @@ export const useSignUpForm = () => {
   const router = useRouter();
   const { applyLoginResult } = useAuth();
   const { showAlert } = useAlert();
+  const { runWithLockSuspended } = useAppLock();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorTitle, setErrorTitle] = useState<string | null>(null);
@@ -43,17 +45,19 @@ export const useSignUpForm = () => {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    await runWithLockSuspended(async () => {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets.length > 0) {
-      setAvatarUri(result.assets[0].uri);
-    }
-  }, [showAlert]);
+      if (!result.canceled && result.assets.length > 0) {
+        setAvatarUri(result.assets[0].uri);
+      }
+    });
+  }, [runWithLockSuspended, showAlert]);
 
   const handleEmailSignUp = useCallback(async () => {
     if (!wrauthConfigured) {

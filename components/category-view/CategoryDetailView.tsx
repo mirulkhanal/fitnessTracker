@@ -47,19 +47,21 @@ function formatLatestChip(timestamp: number): string {
 }
 
 interface PhotoSlideProps {
+  photoId: string;
   uri: string;
   width: number;
   height: number;
 }
 
-function PhotoSlide({ uri, width, height }: PhotoSlideProps) {
+function PhotoSlide({ photoId, uri, width, height }: PhotoSlideProps) {
   return (
     <View style={{ width, height }}>
       <Image
         source={{ uri }}
         style={{ width, height }}
         contentFit="cover"
-        recyclingKey={uri}
+        recyclingKey={photoId}
+        transition={0}
       />
       <LinearGradient
         colors={['transparent', 'rgba(5, 20, 36, 0.4)', 'rgba(5, 20, 36, 0.9)']}
@@ -150,6 +152,7 @@ export function CategoryDetailView({
         <View style={[styles.viewerCard, { height: viewerHeight }]}>
           {sortedPhotos.length === 1 ? (
             <PhotoSlide
+              photoId={sortedPhotos[0].id}
               uri={sortedPhotos[0].uri}
               width={slideWidth}
               height={viewerHeight}
@@ -172,7 +175,12 @@ export function CategoryDetailView({
                 setActiveIndex(Math.min(index, sortedPhotos.length - 1));
               }}
               renderItem={({ item }) => (
-                <PhotoSlide uri={item.uri} width={slideWidth} height={viewerHeight} />
+                <PhotoSlide
+                  photoId={item.id}
+                  uri={item.uri}
+                  width={slideWidth}
+                  height={viewerHeight}
+                />
               )}
             />
           )}

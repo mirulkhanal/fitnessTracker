@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       ...(config.ios?.infoPlist as object | undefined),
       NSFaceIDUsageDescription:
-        'Use Face ID or Touch ID to sign in quickly to FitTrack Progress.',
+        'Use Face ID or Touch ID to unlock FitTrack Progress when you open the app.',
     },
   },
   android: {
@@ -41,6 +41,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         android: {
           usesCleartextTraffic: allowCleartext,
+          enableMinifyInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
         },
       },
     ],
@@ -54,6 +56,23 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         dark: {
           backgroundColor: '#051424',
         },
+      },
+    ],
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/icon.png',
+        color: '#9EF01A',
+      },
+    ],
+    [
+      'expo-media-library',
+      {
+        photosPermission:
+          'Allow FitTrack Progress to save your progress comparison images to your photo library.',
+        savePhotosPermission:
+          'Allow FitTrack Progress to save your progress comparison images to your photo library.',
+        isAccessMediaLocationEnabled: false,
       },
     ],
   ],

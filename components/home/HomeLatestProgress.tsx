@@ -86,7 +86,13 @@ export function HomeLatestProgress({
           </View>
 
           <View style={styles.imageWrap}>
-            <Image source={{ uri: photo.imageUri }} style={styles.image} contentFit="cover" />
+            <Image
+              source={{ uri: photo.imageUri }}
+              style={styles.image}
+              contentFit="cover"
+              recyclingKey={photo.id}
+              transition={0}
+            />
             <LinearGradient
               colors={['transparent', 'rgba(5, 20, 36, 0.2)', 'rgba(5, 20, 36, 0.95)']}
               style={styles.gradient}

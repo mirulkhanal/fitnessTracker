@@ -1,35 +1,14 @@
 import { ProgressStats } from '@/types/progress.interface';
-import { parseTimestampMs, toLocalDateString } from '@/utils/parse-timestamp';
+import { toLocalDateString } from '@/utils/parse-timestamp';
+import {
+  calculateCalendarStreak,
+  calculateWorkoutDayStreak,
+  shouldUseWorkoutDayStreak,
+} from '@/utils/workout-streak';
 
 import { dataMigrationService } from './data-migration.service';
 import { photosService } from './photos.service';
-
-/**
- * Count consecutive calendar days (local timezone) with at least one photo,
- * ending on the day of the most recent photo.
- */
-const calculateStreakFromDays = (streakDays: string[], lastPhotoTimestampMs: number) => {
-  if (streakDays.length === 0) {
-    return 0;
-  }
-
-  let currentStreak = 0;
-  let checkDate = new Date(lastPhotoTimestampMs);
-  const sortedDays = [...streakDays].sort((a, b) => b.localeCompare(a));
-
-  for (const day of sortedDays) {
-    const checkString = toLocalDateString(checkDate.getTime());
-
-    if (day === checkString) {
-      currentStreak += 1;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else if (day < checkString) {
-      break;
-    }
-  }
-
-  return currentStreak;
-};
+import { workoutScheduleService } from './workout-schedule.service';
 
 const getStats = async (): Promise<ProgressStats> => {
   await dataMigrationService.migrateLocalDataToWrAuthIfNeeded();
@@ -41,8 +20,11 @@ const getStats = async (): Promise<ProgressStats> => {
   }
 
   const lastPhotoDate = Math.max(...timestamps);
-  const uniqueDays = new Set(timestamps.map(toLocalDateString));
-  const currentStreak = calculateStreakFromDays(Array.from(uniqueDays), lastPhotoDate);
+  const photoDayStrings = timestamps.map(toLocalDateString);
+  const workoutDays = await workoutScheduleService.getStreakWorkoutDays();
+  const currentStreak = shouldUseWorkoutDayStreak(workoutDays)
+    ? calculateWorkoutDayStreak(photoDayStrings, lastPhotoDate, workoutDays!)
+    : calculateCalendarStreak(photoDayStrings, lastPhotoDate);
 
   return {
     totalPhotos,

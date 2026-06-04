@@ -11,7 +11,8 @@ const TAB_CONFIG: Record<
   { label: string; icon: React.ComponentProps<typeof IconSymbol>['name'] }
 > = {
   index: { label: 'HOME', icon: 'house.fill' },
-  categories: { label: 'EXPLORE', icon: 'square.grid.2x2' },
+  categories: { label: 'CATEGORIES', icon: 'square.grid.2x2' },
+  progress: { label: 'PROGRESS', icon: 'chart.line.uptrend.xyaxis' },
   settings: { label: 'SETTINGS', icon: 'gear' },
 };
 
@@ -117,17 +118,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     borderRadius: 12,
-    minWidth: 72,
+    minWidth: 64,
   },
   tabInnerActive: {
     backgroundColor: FitTrackColors.primaryContainerMuted,
   },
   tabLabel: {
     fontFamily: FitTrackFonts.mono,
-    fontSize: 10,
-    letterSpacing: 1.5,
+    fontSize: 9,
+    letterSpacing: 1,
     marginTop: 4,
     fontWeight: '600',
   },

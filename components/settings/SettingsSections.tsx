@@ -5,14 +5,7 @@ import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittr
 import { useAuthenticatedImageSource } from '@/hooks/use-authenticated-image-source';
 import { Image } from 'expo-image';
 import React from 'react';
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 function SectionLabel({ children }: { children: string }) {
   return <Text style={styles.sectionLabel}>{children}</Text>;
@@ -63,106 +56,66 @@ export function SettingsHeader() {
   );
 }
 
-interface ProfileEditSectionProps {
+interface ProfileCardSectionProps {
   signedIn: boolean;
   email: string;
   displayName: string;
-  bio: string;
+  bio: string | null;
   avatarUri: string | null;
-  saving: boolean;
-  canSave: boolean;
-  onDisplayNameChange: (value: string) => void;
-  onBioChange: (value: string) => void;
-  onPickAvatar: () => void;
-  onSave: () => void;
+  onEdit: () => void;
 }
 
-export function ProfileEditSection({
+export function ProfileCardSection({
   signedIn,
   email,
   displayName,
   bio,
   avatarUri,
-  saving,
-  canSave,
-  onDisplayNameChange,
-  onBioChange,
-  onPickAvatar,
-  onSave,
-}: ProfileEditSectionProps) {
+  onEdit,
+}: ProfileCardSectionProps) {
   const avatarSource = useAuthenticatedImageSource(avatarUri);
-  const fallbackName =
+  const name =
     displayName.trim() ||
-    (email !== 'Not signed in' && email !== 'Not available' ? email.split('@')[0] : 'Profile');
+    (email !== 'Not signed in' && email !== 'Not available' ? email.split('@')[0] : 'Athlete');
+  const bioText = bio?.trim();
 
   return (
     <View style={styles.section}>
       <SectionLabel>PROFILE</SectionLabel>
-      <GlassPanel style={styles.glassCard}>
+      <GlassPanel style={styles.profileCard}>
         {!signedIn ? (
-          <Text style={styles.signedOutText}>Sign in to edit your profile.</Text>
+          <Text style={styles.signedOutText}>Sign in to view and edit your profile.</Text>
         ) : (
-          <>
-            <View style={styles.profileRow}>
-              <TouchableOpacity
-                style={styles.avatar}
-                onPress={onPickAvatar}
-                activeOpacity={0.85}
-              >
-                {avatarSource ? (
-                  <Image source={avatarSource} style={styles.avatarImage} contentFit="cover" />
-                ) : (
-                  <Text style={styles.avatarFallback}>
-                    {fallbackName.charAt(0).toUpperCase()}
-                  </Text>
-                )}
-              </TouchableOpacity>
-              <View style={styles.profileMeta}>
-                <Text style={styles.profileEmail}>{email}</Text>
-                <TouchableOpacity onPress={onPickAvatar} activeOpacity={0.7}>
-                  <Text style={styles.changePhoto}>Change photo</Text>
-                </TouchableOpacity>
-              </View>
+          <View style={styles.profileCardInner}>
+            <View style={styles.avatar}>
+              {avatarSource ? (
+                <Image source={avatarSource} style={styles.avatarImage} contentFit="cover" />
+              ) : (
+                <Text style={styles.avatarFallback}>{name.charAt(0).toUpperCase()}</Text>
+              )}
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Display name</Text>
-              <TextInput
-                style={styles.ghostInput}
-                value={displayName}
-                onChangeText={onDisplayNameChange}
-                placeholder="Your name"
-                placeholderTextColor="rgba(195, 201, 178, 0.5)"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Bio</Text>
-              <TextInput
-                style={[styles.ghostInput, styles.ghostInputMultiline]}
-                value={bio}
-                onChangeText={onBioChange}
-                placeholder="A short note about you"
-                placeholderTextColor="rgba(195, 201, 178, 0.5)"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
+            <View style={styles.profileCardBody}>
+              <Text style={styles.profileName}>{name}</Text>
+              <Text style={styles.profileEmailMuted}>{email}</Text>
+              {bioText ? (
+                <Text style={styles.profileBio} numberOfLines={3}>
+                  {bioText}
+                </Text>
+              ) : (
+                <Text style={styles.profileBioPlaceholder}>No bio yet</Text>
+              )}
             </View>
 
             <TouchableOpacity
-              style={[styles.saveButton, (!canSave || saving) && styles.saveButtonDisabled]}
-              onPress={onSave}
-              disabled={!canSave || saving}
+              style={styles.editButton}
+              onPress={onEdit}
               activeOpacity={0.85}
+              accessibilityLabel="Edit profile"
             >
-              {saving ? (
-                <ActivityIndicator color={FitTrackColors.primaryContainer} size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save profile</Text>
-              )}
+              <IconSymbol name="pencil" size={20} color={FitTrackColors.primaryContainer} />
             </TouchableOpacity>
-          </>
+          </View>
         )}
       </GlassPanel>
     </View>
@@ -170,15 +123,15 @@ export function ProfileEditSection({
 }
 
 interface PreferencesSectionProps {
-  notificationsEnabled: boolean;
-  onToggleNotifications: (value: boolean) => void;
+  workoutRemindersSummary: string;
+  onOpenWorkoutReminders: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
 }
 
 export function PreferencesSection({
-  notificationsEnabled,
-  onToggleNotifications,
+  workoutRemindersSummary,
+  onOpenWorkoutReminders,
   isDarkMode,
   onToggleTheme,
 }: PreferencesSectionProps) {
@@ -188,15 +141,10 @@ export function PreferencesSection({
       <GlassPanel style={styles.glassCardTight}>
         <SettingRow
           icon="bell.fill"
-          title="Notifications"
-          subtitle="Get reminders to track your progress"
+          title="Workout reminders"
+          subtitle={workoutRemindersSummary}
+          onPress={onOpenWorkoutReminders}
           showDivider
-          right={
-            <FitTrackSwitch
-              value={notificationsEnabled}
-              onValueChange={onToggleNotifications}
-            />
-          }
         />
         <SettingRow
           icon="moon.fill"
@@ -232,7 +180,7 @@ export function SecuritySection({
 
   const subtitle = biometricLoading
     ? 'Checking device…'
-    : `Use ${biometricLabel.toLowerCase()} on this device to sign in quickly`;
+    : `Require ${biometricLabel.toLowerCase()} to open the app while staying signed in`;
 
   return (
     <View style={styles.section}>
@@ -240,7 +188,7 @@ export function SecuritySection({
       <GlassPanel style={styles.glassCardTight}>
         <SettingRow
           icon="touchid"
-          title={`${biometricLabel} sign-in`}
+          title={`${biometricLabel} unlock`}
           subtitle={subtitle}
           right={
             <FitTrackSwitch
@@ -364,6 +312,57 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 20,
   },
+  profileCard: {
+    borderRadius: FitTrackRadius.xl,
+    padding: 18,
+  },
+  profileCardInner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  profileCardBody: {
+    flex: 1,
+    gap: 4,
+    paddingRight: 4,
+  },
+  profileName: {
+    fontFamily: FitTrackFonts.displaySemi,
+    fontSize: 20,
+    lineHeight: 26,
+    color: FitTrackColors.onBackground,
+  },
+  profileEmailMuted: {
+    fontFamily: FitTrackFonts.body,
+    fontSize: 14,
+    color: FitTrackColors.onSurfaceVariant,
+  },
+  profileBio: {
+    fontFamily: FitTrackFonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: FitTrackColors.onSurface,
+    marginTop: 6,
+    opacity: 0.9,
+  },
+  profileBioPlaceholder: {
+    fontFamily: FitTrackFonts.body,
+    fontSize: 14,
+    color: FitTrackColors.onSurfaceVariant,
+    marginTop: 6,
+    fontStyle: 'italic',
+    opacity: 0.7,
+  },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: FitTrackColors.primaryContainerMuted,
+    borderWidth: 1,
+    borderColor: FitTrackColors.primaryContainerBorder,
+  },
   glassCardTight: {
     borderRadius: FitTrackRadius.xl,
     overflow: 'hidden',
@@ -372,11 +371,6 @@ const styles = StyleSheet.create({
     fontFamily: FitTrackFonts.body,
     fontSize: 15,
     color: FitTrackColors.onSurfaceVariant,
-  },
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
   },
   avatar: {
     width: 64,
@@ -397,60 +391,6 @@ const styles = StyleSheet.create({
     fontFamily: FitTrackFonts.displaySemi,
     fontSize: 24,
     color: FitTrackColors.onSecondaryContainer,
-  },
-  profileMeta: {
-    flex: 1,
-  },
-  profileEmail: {
-    fontFamily: FitTrackFonts.body,
-    fontSize: 16,
-    color: FitTrackColors.onSurface,
-    marginBottom: 4,
-  },
-  changePhoto: {
-    fontFamily: FitTrackFonts.bodySemi,
-    fontSize: 14,
-    color: FitTrackColors.primaryContainer,
-  },
-  field: {
-    gap: 8,
-  },
-  fieldLabel: {
-    fontFamily: FitTrackFonts.bodySemi,
-    fontSize: 14,
-    color: FitTrackColors.onSurface,
-  },
-  ghostInput: {
-    fontFamily: FitTrackFonts.body,
-    fontSize: 16,
-    color: FitTrackColors.onSurface,
-    backgroundColor: 'rgba(28, 43, 60, 0.5)',
-    borderTopLeftRadius: FitTrackRadius.lg,
-    borderTopRightRadius: FitTrackRadius.lg,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: FitTrackColors.surfaceVariant,
-  },
-  ghostInputMultiline: {
-    minHeight: 88,
-    paddingTop: 12,
-  },
-  saveButton: {
-    paddingVertical: 14,
-    borderRadius: FitTrackRadius.lg,
-    alignItems: 'center',
-    backgroundColor: FitTrackColors.primaryContainerMuted,
-    borderWidth: 1,
-    borderColor: FitTrackColors.primaryContainerBorder,
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    fontFamily: FitTrackFonts.bodySemi,
-    fontSize: 15,
-    color: FitTrackColors.primaryContainer,
   },
   settingRow: {
     flexDirection: 'row',

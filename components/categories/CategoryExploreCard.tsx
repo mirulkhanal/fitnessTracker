@@ -1,4 +1,5 @@
 import { fitnessIconIds } from '@/components/icons/custom-icons';
+import { FitnessCategoryIcon } from '@/components/icons/FitnessCategoryIcon';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
@@ -56,7 +57,11 @@ export function CategoryExploreCard({ category, onPress, onLongPress }: Category
                 useCustomIcon ? { backgroundColor: category.color } : undefined,
               ]}
             >
-              <IconSymbol name={category.icon as never} size={26} color={iconColor} />
+              {useCustomIcon ? (
+                <FitnessCategoryIcon iconId={category.icon} size={26} color={iconColor} />
+              ) : (
+                <IconSymbol name={category.icon as never} size={26} color={iconColor} />
+              )}
             </View>
             {hasPhotos ? (
               <View style={[styles.chip, chipActive ? styles.chipActive : styles.chipMuted]}>

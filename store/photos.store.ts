@@ -2,18 +2,30 @@ import { photosService } from '@/services/photos.service';
 import { Category } from '@/types/category.types';
 import { LoadingState } from '@/types/common.types';
 import { ProgressImage } from '@/types/photo.types';
+import { sortPhotosNewestFirst } from '@/utils/sort-progress-photos';
 import { create } from 'zustand';
 
+/** Stable empty list for Zustand selectors — never use `?? []` inline in hooks. */
+export const EMPTY_PROGRESS_PHOTOS: ProgressImage[] = [];
+
 interface PhotosStore extends LoadingState {
+  /** All photos (home, global latest). */
   photos: ProgressImage[];
-  
-  // Actions
+  /** Per-category cache so category screens do not overwrite home data. */
+  categoryPhotos: Record<string, ProgressImage[]>;
+  categoryLoading: Record<string, boolean>;
+
   loadPhotos: (categoryId?: string) => Promise<void>;
-  savePhoto: (imageUri: string, categories: string | string[], width?: number, height?: number) => Promise<ProgressImage>;
+  savePhoto: (
+    imageUri: string,
+    categories: string | string[],
+    width?: number,
+    height?: number
+  ) => Promise<ProgressImage>;
   deletePhoto: (id: string) => Promise<void>;
-  
-  // Getters
+
   getPhotosByCategory: (categoryId: string) => ProgressImage[];
+  isCategoryLoading: (categoryId: string) => boolean;
   getLatestPhoto: () => ProgressImage | null;
   getValidCategories: (photo: ProgressImage, allCategories: Category[]) => string[];
 }
@@ -33,48 +45,85 @@ const getCategoryIds = (photo: ProgressImage): string[] => {
   return [];
 };
 
+const upsertPhotoInList = (list: ProgressImage[], photo: ProgressImage): ProgressImage[] => {
+  const next = list.filter(item => item.id !== photo.id);
+  return sortPhotosNewestFirst([photo, ...next]);
+};
+
+const removePhotoFromList = (list: ProgressImage[], photoId: string): ProgressImage[] =>
+  list.filter(item => String(item.id) !== String(photoId));
+
 export const usePhotosStore = create<PhotosStore>((set, get) => ({
   photos: [],
+  categoryPhotos: {},
+  categoryLoading: {},
   loading: false,
   error: null,
 
   loadPhotos: async (categoryId?: string) => {
-    set({ loading: true, error: null });
+    if (categoryId) {
+      set(state => ({
+        categoryLoading: { ...state.categoryLoading, [categoryId]: true },
+        error: null,
+      }));
+      try {
+        const photos = sortPhotosNewestFirst(await photosService.listPhotos(categoryId));
+        set(state => ({
+          categoryPhotos: { ...state.categoryPhotos, [categoryId]: photos },
+          categoryLoading: { ...state.categoryLoading, [categoryId]: false },
+        }));
+      } catch (error) {
+        set(state => ({
+          categoryLoading: { ...state.categoryLoading, [categoryId]: false },
+          error: error instanceof Error ? error.message : 'Failed to load photos',
+        }));
+      }
+      return;
+    }
+
+    const showGlobalLoader = get().photos.length === 0;
+    if (showGlobalLoader) {
+      set({ loading: true, error: null });
+    }
     try {
-      const photos = await photosService.listPhotos(categoryId);
+      const photos = sortPhotosNewestFirst(await photosService.listPhotos());
       set({ photos, loading: false });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to load photos',
-        loading: false 
+        loading: false,
       });
     }
   },
 
   savePhoto: async (imageUri: string, categories: string | string[], width: number = 0, height: number = 0) => {
-    set({ loading: true, error: null });
+    set({ error: null });
     try {
       const savedPhoto = await photosService.savePhoto(imageUri, categories, width, height);
-      
-      set(state => ({
-        photos: [savedPhoto, ...state.photos],
-        loading: false
-      }));
-      
-      const { useCategoriesStore } = await import('@/store/categories.store');
-      const categoriesStore = useCategoriesStore.getState();
-      await categoriesStore.loadCategoryStats();
+      const categoryIds = getCategoryIds(savedPhoto);
 
-      // Trigger stats refresh by importing and calling the stats store
+      set(state => {
+        const nextCategoryPhotos = { ...state.categoryPhotos };
+        for (const id of categoryIds) {
+          const existing = nextCategoryPhotos[id] ?? [];
+          nextCategoryPhotos[id] = upsertPhotoInList(existing, savedPhoto);
+        }
+        return {
+          photos: upsertPhotoInList(state.photos, savedPhoto),
+          categoryPhotos: nextCategoryPhotos,
+        };
+      });
+
+      const { useCategoriesStore } = await import('@/store/categories.store');
+      void useCategoriesStore.getState().loadCategoryStats();
+
       const { useStatsStore } = await import('@/store/stats.store');
-      const statsStore = useStatsStore.getState();
-      await statsStore.loadStats();
-      
+      void useStatsStore.getState().loadStats();
+
       return savedPhoto;
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to save photo',
-        loading: false 
       });
       throw error;
     }
@@ -82,35 +131,40 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
 
   deletePhoto: async (id: string) => {
     const photoId = String(id);
-    set({ loading: true, error: null });
+    set({ error: null });
     try {
       await photosService.deletePhoto(photoId);
 
-      set(state => ({
-        photos: state.photos.filter(photo => String(photo.id) !== photoId),
-        loading: false,
-      }));
+      set(state => {
+        const nextCategoryPhotos: Record<string, ProgressImage[]> = {};
+        for (const [key, list] of Object.entries(state.categoryPhotos)) {
+          nextCategoryPhotos[key] = removePhotoFromList(list, photoId);
+        }
+        return {
+          photos: removePhotoFromList(state.photos, photoId),
+          categoryPhotos: nextCategoryPhotos,
+        };
+      });
 
       const { useCategoriesStore } = await import('@/store/categories.store');
-      const categoriesStore = useCategoriesStore.getState();
-      await categoriesStore.loadCategoryStats();
+      void useCategoriesStore.getState().loadCategoryStats();
 
       const { useStatsStore } = await import('@/store/stats.store');
-      const statsStore = useStatsStore.getState();
-      await statsStore.loadStats();
+      void useStatsStore.getState().loadStats();
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to delete photo',
-        loading: false,
       });
       throw error;
     }
   },
 
   getPhotosByCategory: (categoryId: string) => {
-    return get().photos.filter(photo => {
-      return getCategoryIds(photo).includes(categoryId);
-    });
+    return get().categoryPhotos[categoryId] ?? EMPTY_PROGRESS_PHOTOS;
+  },
+
+  isCategoryLoading: (categoryId: string) => {
+    return get().categoryLoading[categoryId] ?? false;
   },
 
   getLatestPhoto: () => {
@@ -120,8 +174,10 @@ export const usePhotosStore = create<PhotosStore>((set, get) => ({
 
   getValidCategories: (photo: ProgressImage, allCategories: Category[]) => {
     const categoryIds = getCategoryIds(photo);
-    if (categoryIds.length === 0) return [];
-    
+    if (categoryIds.length === 0) {
+      return [];
+    }
+
     return categoryIds
       .map(categoryId => allCategories.find(cat => cat.id === categoryId))
       .filter((cat): cat is Category => Boolean(cat))
