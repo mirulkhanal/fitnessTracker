@@ -4,18 +4,25 @@ import { BeforeAfterExportCanvas } from '@/components/progress/BeforeAfterExport
 import { ProgressCategoryChips } from '@/components/progress/ProgressCategoryChips';
 import { ProgressExportCard } from '@/components/progress/ProgressExportCard';
 import { ProgressSlideshow } from '@/components/progress/ProgressSlideshow';
+import { ProgressVideoSlideCanvas } from '@/components/progress/ProgressVideoSlideCanvas';
 import { ProgressTimeline } from '@/components/progress/ProgressTimeline';
 import { ProgressViewModeTabs } from '@/components/progress/ProgressViewModeTabs';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { BEFORE_AFTER_EXPORT_WIDTH } from '@/constants/before-after-export';
+import { PROGRESS_VIDEO_WIDTH } from '@/constants/progress-video-export';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
 import { useAlert } from '@/contexts/AlertContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBeforeAfterShare } from '@/hooks/use-before-after-share';
 import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 import { useProgressScreen } from '@/hooks/use-progress-screen';
+import { useProgressVideoExport } from '@/hooks/use-progress-video-export';
 import { EXPO_GO_SAVE_HINT } from '@/services/before-after-share.service';
-import { canUseNativeMediaLibrary } from '@/utils/expo-runtime';
+import {
+  canUseNativeMediaLibrary,
+  canUseProgressVideoExport,
+  EXPO_GO_VIDEO_EXPORT_HINT,
+} from '@/utils/expo-runtime';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -44,6 +51,13 @@ export default function ProgressScreen() {
 
   const exportRef = useRef<View>(null);
   const { sharing, shareBeforeAfter, saveBeforeAfterToGallery } = useBeforeAfterShare();
+  const {
+    exportRef: videoSlideRef,
+    exporting: videoExporting,
+    exportProgress: videoExportProgress,
+    slideCapture,
+    exportProgressVideo,
+  } = useProgressVideoExport();
 
   const photoCount = timelinePhotos.length;
   const canCompare = photoCount >= 2;
@@ -60,14 +74,89 @@ export default function ProgressScreen() {
     }
   }, [canCompare, canSlideshow, setViewMode, viewMode]);
 
-  const showVideoExportInfo = useCallback(() => {
+  const runVideoExport = useCallback(
+    async (mode: 'share' | 'save') => {
+      if (!selectedCategory || !canSlideshow) {
+        return;
+      }
+      try {
+        await exportProgressVideo(timelinePhotos, selectedCategory.name, slideshowSpeed, mode);
+        if (mode === 'save') {
+          showAlert({
+            title: 'Video saved',
+            message: 'Your progress video was saved to your photo library.',
+            variant: 'success',
+          });
+        }
+      } catch (error) {
+        showAlert({
+          title: mode === 'share' ? 'Share failed' : 'Save failed',
+          message: error instanceof Error ? error.message : 'Unable to export the video.',
+          variant: 'error',
+        });
+      }
+    },
+    [
+      canSlideshow,
+      exportProgressVideo,
+      selectedCategory,
+      showAlert,
+      slideshowSpeed,
+      timelinePhotos,
+    ]
+  );
+
+  const handleVideoExportPress = useCallback(() => {
+    if (!canUseProgressVideoExport()) {
+      showAlert({
+        title: 'Video export',
+        message: EXPO_GO_VIDEO_EXPORT_HINT,
+        variant: 'info',
+      });
+      return;
+    }
+    if (!canSlideshow || !selectedCategory) {
+      showAlert({
+        title: 'Need photos',
+        message: 'Add at least one progress photo in this category to export a video.',
+        variant: 'warning',
+      });
+      return;
+    }
+    if (videoExporting) {
+      return;
+    }
+
+    const buttons: { text: string; style?: 'cancel'; onPress?: () => void }[] = [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Share video',
+        onPress: () => void runVideoExport('share'),
+      },
+    ];
+
+    if (canUseNativeMediaLibrary()) {
+      buttons.push({
+        text: 'Save to gallery',
+        onPress: () => void runVideoExport('save'),
+      });
+    }
+
     showAlert({
-      title: 'Progress video export',
-      message:
-        'Stitching photos into an MP4 needs native encoding (FFmpeg or expo-video after a dev build). Expect roughly 3–5 days of work including progress UI, storage permissions, and testing on iOS/Android. The in-app slideshow already previews the same sequence.',
+      title: 'Export progress video',
+      message: `Creates an MP4 from ${timelinePhotos.length} photos using your ${slideshowSpeed} slideshow timing.`,
       variant: 'info',
+      buttons,
     });
-  }, [showAlert]);
+  }, [
+    canSlideshow,
+    runVideoExport,
+    selectedCategory,
+    showAlert,
+    slideshowSpeed,
+    timelinePhotos.length,
+    videoExporting,
+  ]);
 
   const runBeforeAfterExport = useCallback(
     async (mode: 'share' | 'save') => {
@@ -208,7 +297,10 @@ export default function ProgressScreen() {
                 ) : null}
 
                 <ProgressExportCard
-                  onVideoExportPress={showVideoExportInfo}
+                  videoExportAvailable={canUseProgressVideoExport()}
+                  videoExporting={videoExporting}
+                  videoExportProgress={videoExportProgress}
+                  onVideoExportPress={handleVideoExportPress}
                   onShareableComparePress={handleShareBeforeAfter}
                   shareCompareDisabled={!canCompare}
                   shareCompareLoading={sharing}
@@ -231,6 +323,18 @@ export default function ProgressScreen() {
             before={firstPhoto}
             after={lastPhoto}
             categoryName={selectedCategory.name}
+          />
+        </View>
+      ) : null}
+
+      {slideCapture ? (
+        <View style={styles.videoCaptureHost} pointerEvents="none" collapsable={false}>
+          <ProgressVideoSlideCanvas
+            ref={videoSlideRef}
+            photo={slideCapture.photo}
+            categoryName={slideCapture.categoryName}
+            slideIndex={slideCapture.index}
+            slideTotal={slideCapture.total}
           />
         </View>
       ) : null}
@@ -283,6 +387,12 @@ const styles = StyleSheet.create({
   exportCaptureHost: {
     position: 'absolute',
     left: -BEFORE_AFTER_EXPORT_WIDTH - 50,
+    top: 0,
+    opacity: 0,
+  },
+  videoCaptureHost: {
+    position: 'absolute',
+    left: -PROGRESS_VIDEO_WIDTH - 50,
     top: 0,
     opacity: 0,
   },

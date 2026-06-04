@@ -64,6 +64,8 @@ Categories and photo **metadata** live in wrAuth (`/data/categories`, `/data/pho
 
 **Workout reminders** use `expo-notifications` for local weekly alarms. Grant notification permission on a physical device; tap the bell icon or open **Settings → Workout reminders** to set time and days.
 
+**Progress video export** (Progress tab → Export progress video) builds an MP4 from your slideshow photos using `expo-image-sequence-encoder` (on-device H.264). Requires a **development or production build** — not Expo Go. Timing follows the Slow/Medium/Fast slideshow speed.
+
 **Per-user privacy:** wrAuth automatically adds an `owner_user_id` system column to every data table (new and existing). List/create/update/delete APIs only return rows owned by the signed-in user when that column is present.
 
 **Cross-device sync:** progress photos and avatars are uploaded to wrAuth object storage (`POST /storage/objects`). Metadata `local_id` stores a `wrauth-storage://{objectId}` reference. The photo encryption key is synced to storage under purpose `photo_vault_key` so another device can decrypt.

@@ -48,7 +48,9 @@ let memorySchedule: WorkoutSchedule | null = null;
 export const workoutScheduleService = {
   subscribe(listener: Listener) {
     listeners.add(listener);
-    return () => listeners.delete(listener);
+    return () => {
+      listeners.delete(listener);
+    };
   },
 
   async getSchedule(): Promise<WorkoutSchedule> {

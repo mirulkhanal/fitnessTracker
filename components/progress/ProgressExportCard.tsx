@@ -2,9 +2,12 @@ import { GlassPanel } from '@/components/ui/GlassPanel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface ProgressExportCardProps {
+  videoExportAvailable: boolean;
+  videoExporting: boolean;
+  videoExportProgress: number;
   onVideoExportPress: () => void;
   onShareableComparePress: () => void;
   shareCompareDisabled?: boolean;
@@ -12,26 +15,52 @@ interface ProgressExportCardProps {
 }
 
 export function ProgressExportCard({
+  videoExportAvailable,
+  videoExporting,
+  videoExportProgress,
   onVideoExportPress,
   onShareableComparePress,
   shareCompareDisabled = false,
   shareCompareLoading = false,
 }: ProgressExportCardProps) {
+  const videoProgressLabel =
+    videoExporting && videoExportProgress > 0
+      ? `Encoding… ${Math.round(videoExportProgress * 100)}%`
+      : videoExporting
+        ? 'Preparing frames…'
+        : null;
+
   return (
     <GlassPanel style={styles.panel}>
       <Text style={styles.title}>Export & share</Text>
       <Text style={styles.body}>
-        Export a side-by-side before/after PNG from the compare tab, or use the options below.
-        Video export still requires a dev build.
+        Export a slideshow MP4 timed to your speed setting, or share a before/after PNG from the
+        compare tab.
       </Text>
 
-      <TouchableOpacity style={styles.action} onPress={onVideoExportPress} activeOpacity={0.85}>
-        <IconSymbol name="photo.stack" size={20} color={FitTrackColors.primaryContainer} />
+      <TouchableOpacity
+        style={[styles.action, (!videoExportAvailable || videoExporting) && styles.actionDisabled]}
+        onPress={onVideoExportPress}
+        disabled={!videoExportAvailable || videoExporting}
+        activeOpacity={0.85}
+      >
+        {videoExporting ? (
+          <ActivityIndicator size="small" color={FitTrackColors.primaryContainer} />
+        ) : (
+          <IconSymbol name="photo.stack" size={20} color={FitTrackColors.primaryContainer} />
+        )}
         <View style={styles.actionText}>
           <Text style={styles.actionTitle}>Export progress video</Text>
-          <Text style={styles.actionSubtitle}>Coming soon · dev build required</Text>
+          <Text style={styles.actionSubtitle}>
+            {videoProgressLabel ??
+              (videoExportAvailable
+                ? 'MP4 · matches slideshow speed'
+                : 'Requires dev or production build')}
+          </Text>
         </View>
-        <IconSymbol name="chevron.right" size={18} color={FitTrackColors.onSurfaceVariant} />
+        {!videoExporting ? (
+          <IconSymbol name="chevron.right" size={18} color={FitTrackColors.onSurfaceVariant} />
+        ) : null}
       </TouchableOpacity>
 
       <TouchableOpacity
