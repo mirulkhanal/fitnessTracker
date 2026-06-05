@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: APK build variant (debug is faster and more reliable on CI)
+        description: APK build variant (release is production-like; debug skips R8 for faster CI)
         required: true
-        default: debug
+        default: release
         type: choice
         options:
-          - debug
           - release
+          - debug
 
 permissions:
   contents: write
@@ -25,7 +25,7 @@ jobs:
   build-and-publish:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
       EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
@@ -86,7 +86,7 @@ jobs:
       - name: Set build variant
         id: variant
         run: |
-          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.variant || 'debug' }}"
+          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.variant || 'release' }}"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
       - name: Build APK locally

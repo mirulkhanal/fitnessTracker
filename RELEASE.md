@@ -148,7 +148,7 @@ The [Android Release](.github/workflows/android-release.yml) workflow:
 2. Resolves next semver tag from commits since last `v*` tag
 3. Creates/updates GitHub Release and uploads `FitTrack-Progress-vX.Y.Z.apk`
 
-Manual run: **Actions → Android Release → Run workflow** (choose `debug` or `release` variant).
+Manual run: **Actions → Android Release → Run workflow** (defaults to `release`; pick `debug` only for a faster smoke build).
 
 ### Manual runs
 
