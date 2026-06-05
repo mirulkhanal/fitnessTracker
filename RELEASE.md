@@ -78,7 +78,7 @@ source /path/to/fitnessTracker/.android-sdk.env
 source .android-sdk.env   # if not already loaded
 pnpm build:android:local          # release APK (matches EAS minify/R8)
 # or
-pnpm build:android:local:debug    # faster debug APK
+pnpm build:android:local:debug    # faster APK (no R8), JS embedded — no Metro needed
 # or, with USB debugging:
 pnpm build:android:local:install  # build release + adb install
 ```

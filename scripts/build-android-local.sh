@@ -16,7 +16,7 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/build-android-local.sh [--debug] [--install]
 
-  --debug     Faster debug APK (skips R8 minify). Good for quick device smoke tests.
+  --debug     Faster APK without R8 minify; JS is embedded (no Metro on device).
   --install   adb install -r the APK when a device is connected.
 
 One-time headless SDK setup (no Android Studio):
@@ -84,6 +84,22 @@ patch_gradle_properties() {
   fi
 }
 
+# Debug APKs normally skip JS bundling and load from Metro (localhost:8081).
+# Empty debuggableVariants embeds the bundle so the APK works on a phone alone.
+patch_standalone_debug_bundle() {
+  if [[ "$VARIANT" != "debug" ]]; then
+    return
+  fi
+
+  local gradle="$ROOT/android/app/build.gradle"
+  if grep -q 'debuggableVariants = \[\]' "$gradle"; then
+    return
+  fi
+
+  sed -i 's|// debuggableVariants = \["liteDebug", "prodDebug"\]|debuggableVariants = []|' "$gradle"
+  echo "==> Patched debug build to embed JS bundle (no Metro required)"
+}
+
 stop_stale_gradle() {
   echo "==> Stopping stale Gradle daemons"
   # Project-local cache avoids ~/.gradle lock fights after Ctrl+C.
@@ -112,6 +128,7 @@ echo "==> Generating native Android project (expo prebuild)"
 CI=1 pnpm exec expo prebuild --platform android --no-install
 
 patch_gradle_properties
+patch_standalone_debug_bundle
 stop_stale_gradle
 
 GRADLE_TASK="assembleRelease"
