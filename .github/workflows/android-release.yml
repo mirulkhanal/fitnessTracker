@@ -90,6 +90,8 @@ jobs:
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
       - name: Build APK locally
+        env:
+          NODE_ENV: production
         run: |
           source .android-sdk.env
           if [ "${{ steps.variant.outputs.value }}" = "release" ]; then

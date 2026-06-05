@@ -34,6 +34,7 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "babel-preset-expo": "~54.0.11",
     "expo": "~54.0.20",
     "expo-auth-session": "^7.0.10",
     "expo-blur": "~15.0.8",
@@ -73,9 +74,9 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@types/node": "^20.19.0",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
+    "@types/node": "^20.19.0",
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
