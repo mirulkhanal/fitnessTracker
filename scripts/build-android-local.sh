@@ -20,7 +20,7 @@ Usage: ./scripts/build-android-local.sh [--debug] [--install]
   --install   adb install -r the APK when a device is connected.
 
 One-time headless SDK setup (no Android Studio):
-  sudo apt install openjdk-17-jdk unzip curl ca-certificates
+  sudo apt install openjdk-21-jdk-headless unzip curl ca-certificates
   pnpm setup:android-sdk
   source .android-sdk.env
   cp .env.example .env
@@ -38,8 +38,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! command -v java >/dev/null 2>&1; then
-  echo "error: java not found. Install JDK 17+:" >&2
-  echo "  sudo apt install openjdk-17-jdk" >&2
+  echo "error: java not found. Install JDK 21+:" >&2
+  echo "  sudo apt install openjdk-21-jdk-headless" >&2
   exit 1
 fi
 
@@ -63,6 +63,46 @@ if [[ ! -f .env ]]; then
   echo "warning: .env missing — copy .env.example and set wrAuth values for a working app." >&2
 fi
 
+patch_gradle_properties() {
+  local props="$ROOT/android/gradle.properties"
+  if [[ ! -f "$props" ]]; then
+    echo "error: missing $props (prebuild failed?)" >&2
+    exit 1
+  fi
+
+  # gradle.properties overrides GRADLE_OPTS — patch it directly after prebuild.
+  sed -i \
+    -e 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1536m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8/' \
+    -e 's/^org.gradle.parallel=.*/org.gradle.parallel=false/' \
+    "$props"
+
+  if [[ "$VARIANT" == "debug" ]]; then
+    sed -i \
+      -e 's/^android.enableMinifyInReleaseBuilds=.*/android.enableMinifyInReleaseBuilds=false/' \
+      -e 's/^android.enableShrinkResourcesInReleaseBuilds=.*/android.enableShrinkResourcesInReleaseBuilds=false/' \
+      "$props" 2>/dev/null || true
+  fi
+}
+
+stop_stale_gradle() {
+  echo "==> Stopping stale Gradle daemons"
+  # Project-local cache avoids ~/.gradle lock fights after Ctrl+C.
+  export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$ROOT/.gradle-local}"
+  mkdir -p "$GRADLE_USER_HOME"
+
+  if [[ -d android && -x android/gradlew ]]; then
+    (cd android && ./gradlew --stop >/dev/null 2>&1) || true
+  fi
+  if command -v gradle >/dev/null 2>&1; then
+    gradle --stop >/dev/null 2>&1 || true
+  fi
+
+  # Kill orphaned daemons still holding ~/.gradle locks from interrupted builds.
+  if command -v jps >/dev/null 2>&1; then
+    jps -l 2>/dev/null | grep -i GradleDaemon | awk '{print $1}' | xargs -r kill 2>/dev/null || true
+  fi
+}
+
 echo "==> Using ANDROID_HOME=$ANDROID_HOME"
 
 echo "==> Ensuring node dependencies"
@@ -70,6 +110,9 @@ pnpm install --frozen-lockfile
 
 echo "==> Generating native Android project (expo prebuild)"
 CI=1 pnpm exec expo prebuild --platform android --no-install
+
+patch_gradle_properties
+stop_stale_gradle
 
 GRADLE_TASK="assembleRelease"
 APK_SUBDIR="release"
@@ -79,9 +122,17 @@ if [[ "$VARIANT" == "debug" ]]; then
 fi
 
 echo "==> Building APK ($GRADLE_TASK)"
+echo "    GRADLE_USER_HOME=$GRADLE_USER_HOME"
 cd android
 chmod +x gradlew
-./gradlew "$GRADLE_TASK" --no-daemon
+export KOTLIN_DAEMON_JVMARGS="${KOTLIN_DAEMON_JVMARGS:--Xmx2048m}"
+./gradlew \
+  "$GRADLE_TASK" \
+  --no-daemon \
+  --max-workers=2 \
+  -Dkotlin.daemon.jvm.options="$KOTLIN_DAEMON_JVMARGS" \
+  -Dkotlin.incremental=false \
+  -PreactNativeArchitectures=arm64-v8a
 
 APK_SRC="app/build/outputs/apk/${APK_SUBDIR}/app-${APK_SUBDIR}.apk"
 if [[ ! -f "$APK_SRC" ]]; then

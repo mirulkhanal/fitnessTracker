@@ -48,3 +48,4 @@ app-example
 # headless local Android SDK (scripts/setup-android-sdk.sh)
 .android-sdk/
 .android-sdk.env
+.gradle-local/

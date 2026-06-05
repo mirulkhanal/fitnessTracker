@@ -22,7 +22,7 @@ Installs a headless Android SDK at:
   $SDK_ROOT
 
 System packages still required (Debian/Ubuntu):
-  sudo apt install openjdk-17-jdk unzip curl ca-certificates
+  sudo apt install openjdk-21-jdk-headless unzip curl ca-certificates
 
 After setup, build with:
   pnpm build:android:local
@@ -50,7 +50,7 @@ need_cmd unzip
 need_cmd java
 
 if ! java -version 2>&1 | grep -qE 'version "1[789]|version "[2-9][0-9]'; then
-  echo "warning: Java 17+ recommended (sudo apt install openjdk-17-jdk)." >&2
+  echo "warning: Java 17+ recommended (sudo apt install openjdk-21-jdk-headless)." >&2
 fi
 
 mkdir -p "$SDK_ROOT/cmdline-tools"
@@ -82,7 +82,15 @@ PACKAGES=(
 )
 
 echo "==> Accepting Android SDK licenses"
-yes | "${SDKMANAGER[@]}" --licenses >/dev/null
+# sdkmanager sometimes exits early and causes a SIGPIPE (exit code 141) on the `yes` side.
+# That's fine as long as licenses were accepted; do not fail the whole script on that.
+set +e
+yes | "${SDKMANAGER[@]}" --licenses >/dev/null 2>&1
+LICENSE_STATUS=$?
+set -e
+if [[ $LICENSE_STATUS -ne 0 && $LICENSE_STATUS -ne 141 ]]; then
+  echo "warning: sdkmanager --licenses exited with code $LICENSE_STATUS" >&2
+fi
 
 echo "==> Installing SDK packages"
 "${SDKMANAGER[@]}" "${PACKAGES[@]}"
