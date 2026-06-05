@@ -1,4 +1,5 @@
 import { HomeTopBar } from '@/components/home/HomeTopBar';
+import { DeleteAccountPasswordModal } from '@/components/settings/DeleteAccountPasswordModal';
 import { ProfileEditModal } from '@/components/settings/ProfileEditModal';
 import {
   AboutSection,
@@ -44,9 +45,14 @@ export default function SettingsScreen() {
     handlePickAvatar,
     handleSaveProfile,
     handleExportData,
+    exportingData,
     handleAbout,
     handlePrivacy,
     handleDeleteAccount,
+    deletePasswordVisible,
+    deletingAccount,
+    closeDeletePasswordModal,
+    confirmDeleteAccount,
     handleSignOut,
     isDarkMode,
     toggleTheme,
@@ -100,7 +106,7 @@ export default function SettingsScreen() {
           biometricToggling={biometricToggling}
           onToggleBiometric={handleToggleBiometric}
         />
-        <DataManagementSection onExport={handleExportData} />
+        <DataManagementSection onExport={handleExportData} exporting={exportingData} />
         <AccountSection
           signedIn={signedIn}
           onSignOut={handleSignOut}
@@ -109,6 +115,15 @@ export default function SettingsScreen() {
         <AboutSection onAbout={handleAbout} onPrivacy={handlePrivacy} />
         <SettingsFooter />
       </ScrollView>
+
+      <DeleteAccountPasswordModal
+        visible={deletePasswordVisible}
+        deleting={deletingAccount}
+        onClose={closeDeletePasswordModal}
+        onConfirm={password => {
+          void confirmDeleteAccount(password);
+        }}
+      />
 
       <ProfileEditModal
         visible={profileEditVisible}

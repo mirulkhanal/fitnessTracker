@@ -205,9 +205,10 @@ export function SecuritySection({
 
 interface DataManagementSectionProps {
   onExport: () => void;
+  exporting?: boolean;
 }
 
-export function DataManagementSection({ onExport }: DataManagementSectionProps) {
+export function DataManagementSection({ onExport, exporting = false }: DataManagementSectionProps) {
   return (
     <View style={styles.section}>
       <SectionLabel>DATA MANAGEMENT</SectionLabel>
@@ -215,8 +216,17 @@ export function DataManagementSection({ onExport }: DataManagementSectionProps) 
         <SettingRow
           icon="square.and.arrow.up"
           title="Export Data"
-          subtitle="Download your progress photos and data"
-          onPress={onExport}
+          subtitle={
+            exporting
+              ? 'Preparing your export…'
+              : 'Download decrypted photos organized by category'
+          }
+          onPress={exporting ? undefined : onExport}
+          right={
+            exporting ? (
+              <Text style={styles.exportingLabel}>Working…</Text>
+            ) : undefined
+          }
         />
       </GlassPanel>
     </View>
@@ -238,7 +248,7 @@ export function AccountSection({ signedIn, onSignOut, onDeleteAccount }: Account
           <SettingRow
             icon="trash"
             title="Delete account"
-            subtitle="Remove your data from this app and wrAuth"
+            subtitle="Permanently delete your account and cloud data"
             onPress={onDeleteAccount}
             showDivider
           />
@@ -447,6 +457,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: FitTrackColors.onSurfaceVariant,
     marginBottom: 6,
+  },
+  exportingLabel: {
+    fontFamily: FitTrackFonts.body,
+    fontSize: 13,
+    color: FitTrackColors.onSurfaceVariant,
   },
   versionText: {
     fontFamily: FitTrackFonts.body,

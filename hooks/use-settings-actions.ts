@@ -24,6 +24,9 @@ export const useSettingsActions = () => {
   const [avatarUriDraft, setAvatarUriDraft] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileEditVisible, setProfileEditVisible] = useState(false);
+  const [deletePasswordVisible, setDeletePasswordVisible] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
 
   const signedIn = Boolean(session?.user);
   const email = session?.user?.email ?? 'Not signed in';
@@ -165,28 +168,35 @@ export const useSettingsActions = () => {
   const profileAvatarUri = session?.avatar_url ?? null;
 
   const handleExportData = useCallback(() => {
+    if (exportingData) {
+      return;
+    }
     showAlert({
       title: 'Export Data',
       message:
-        'Exports category and photo metadata as JSON. Encrypted image files are not included in this file.',
+        'Downloads a zip of your profile, categories, and decrypted progress photos organized by muscle group.',
       variant: 'info',
       buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Export',
           onPress: () => {
-            void dataExportService.exportMetadataJson().catch(error => {
-              showAlert({
-                title: 'Export failed',
-                message: error instanceof Error ? error.message : 'Unable to export data.',
-                variant: 'error',
-              });
-            });
+            setExportingData(true);
+            void dataExportService
+              .exportUserDataZip()
+              .catch(error => {
+                showAlert({
+                  title: 'Export failed',
+                  message: error instanceof Error ? error.message : 'Unable to export data.',
+                  variant: 'error',
+                });
+              })
+              .finally(() => setExportingData(false));
           },
         },
       ],
     });
-  }, [showAlert]);
+  }, [exportingData, showAlert]);
 
   const handleAbout = useCallback(() => {
     showAlert({
@@ -208,35 +218,57 @@ export const useSettingsActions = () => {
   }, [showAlert]);
 
   const handleDeleteAccount = useCallback(() => {
-    if (!signedIn) {
+    if (!signedIn || deletingAccount) {
       return;
     }
     showAlert({
       title: 'Delete account?',
       message:
-        'This permanently removes your categories, photo metadata, and cloud storage tied to this account. Encrypted files on this device are also cleared. This cannot be undone.',
+        'This permanently deletes your FitTrack account, including your login, categories, photos, and all cloud storage. This cannot be undone.',
       variant: 'warning',
       buttons: [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Continue',
           style: 'destructive',
-          onPress: () => {
-            void accountDeletionService
-              .deleteAccountAndLocalData()
-              .then(() => router.replace('/sign-in'))
-              .catch(error => {
-                showAlert({
-                  title: 'Deletion failed',
-                  message: error instanceof Error ? error.message : 'Unable to delete account.',
-                  variant: 'error',
-                });
-              });
-          },
+          onPress: () => setDeletePasswordVisible(true),
         },
       ],
     });
-  }, [router, showAlert, signedIn]);
+  }, [deletingAccount, showAlert, signedIn]);
+
+  const closeDeletePasswordModal = useCallback(() => {
+    if (deletingAccount) {
+      return;
+    }
+    setDeletePasswordVisible(false);
+  }, [deletingAccount]);
+
+  const confirmDeleteAccount = useCallback(
+    async (password: string) => {
+      setDeletingAccount(true);
+      try {
+        await accountDeletionService.deleteAccountAndLocalData(password);
+        setDeletePasswordVisible(false);
+        router.replace('/sign-in');
+      } catch (error) {
+        const message =
+          error instanceof WrAuthRequestError && error.code === 'INVALID_PASSWORD'
+            ? 'Incorrect password.'
+            : error instanceof Error
+              ? error.message
+              : 'Unable to delete account.';
+        showAlert({
+          title: 'Deletion failed',
+          message,
+          variant: 'error',
+        });
+      } finally {
+        setDeletingAccount(false);
+      }
+    },
+    [router, showAlert]
+  );
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -273,9 +305,14 @@ export const useSettingsActions = () => {
     handlePickAvatar,
     handleSaveProfile,
     handleExportData,
+    exportingData,
     handleAbout,
     handlePrivacy,
     handleDeleteAccount,
+    deletePasswordVisible,
+    deletingAccount,
+    closeDeletePasswordModal,
+    confirmDeleteAccount,
     handleSignOut,
   };
 };

@@ -173,6 +173,50 @@ export const wrAuthClient = {
       accessToken,
     }),
 
+  deleteAccount: (accessToken: string, password: string) =>
+    authRequest<void>({
+      path: '/auth/me',
+      method: 'DELETE',
+      accessToken,
+      body: { password },
+    }),
+
+  downloadDataExport: async (accessToken: string): Promise<ArrayBuffer> => {
+    if (!wrauthApiUrl || !wrauthAppKey) {
+      throw new WrAuthRequestError(
+        0,
+        'WRAUTH_NOT_CONFIGURED',
+        'wrAuth is not configured. Set EXPO_PUBLIC_WRAUTH_API_URL and EXPO_PUBLIC_WRAUTH_APP_KEY.'
+      );
+    }
+
+    const headers: Record<string, string> = {
+      'X-App-Key': wrauthAppKey,
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(`${wrauthApiUrl}/auth/me/export`, {
+        method: 'GET',
+        headers,
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Network request failed';
+      throw new WrAuthRequestError(
+        0,
+        'NETWORK_ERROR',
+        `Cannot reach wrAuth at ${wrauthApiUrl} (${detail}).`
+      );
+    }
+
+    if (!response.ok) {
+      throw await parseError(response);
+    }
+
+    return response.arrayBuffer();
+  },
+
   verifyEmailWithToken: (token: string) =>
     authRequest<{ message: string }>({
       path: '/auth/verify-email',

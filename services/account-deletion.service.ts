@@ -1,17 +1,11 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
-import { isWrAuthStorageRef } from '@/constants/wrauth-storage';
 import { authSessionService } from '@/services/auth-session.service';
 import { biometricAuthService } from '@/services/biometric-auth.service';
 import { photoVaultService } from '@/services/photo-vault.service';
 import { photosService } from '@/services/photos.service';
 import { executeWithAccessTokenRetry } from '@/services/wrauth-session-refresh.service';
 import { wrAuthClient } from '@/services/wrauth.client';
-import { wrAuthDataService } from '@/services/wrauth-data.service';
-import { wrAuthStorageService } from '@/services/wrauth-storage.service';
-
-const VAULT_REF_STORAGE_KEY = '@fitnesstracker/photo_vault_storage_ref';
 
 /** Remove legacy on-disk photo files from older app versions. */
 const deleteLegacyLocalPhotoFiles = async () => {
@@ -38,44 +32,15 @@ const deleteLegacyLocalPhotoFiles = async () => {
 };
 
 export const accountDeletionService = {
-  async deleteAccountAndLocalData(): Promise<void> {
+  async deleteAccountAndLocalData(password: string): Promise<void> {
     const session = await authSessionService.getSession();
     if (!session?.access_token) {
       throw new Error('Sign in to delete your account.');
     }
 
-    await executeWithAccessTokenRetry(async accessToken => {
-      const photos = await wrAuthDataService.listPhotoMetadata();
-      for (const photo of photos) {
-        if (photo.local_id && isWrAuthStorageRef(photo.local_id)) {
-          await wrAuthStorageService.deleteRef(photo.local_id).catch(() => undefined);
-        }
-        await wrAuthClient.deleteDataRow('photo_metadata', accessToken, photo.id);
-      }
-
-      const categories = await wrAuthDataService.listCategories();
-      for (const category of categories) {
-        await wrAuthClient.deleteDataRow('categories', accessToken, category.id);
-      }
-
-      const profileId = session.profile_id;
-      if (profileId) {
-        await wrAuthClient.deleteDataRow('profiles', accessToken, profileId).catch(() => undefined);
-      }
-
-      if (session.avatar_url && isWrAuthStorageRef(session.avatar_url)) {
-        await wrAuthStorageService.deleteRef(session.avatar_url).catch(() => undefined);
-      }
-
-      const vaultRef = await AsyncStorage.getItem(VAULT_REF_STORAGE_KEY);
-      if (vaultRef && isWrAuthStorageRef(vaultRef)) {
-        await wrAuthStorageService.deleteRef(vaultRef).catch(() => undefined);
-      }
-    });
-
-    if (session.refresh_token) {
-      await wrAuthClient.logout(session.refresh_token).catch(() => undefined);
-    }
+    await executeWithAccessTokenRetry(accessToken =>
+      wrAuthClient.deleteAccount(accessToken, password)
+    );
 
     photosService.clearSessionCache();
     photoVaultService.clear();
