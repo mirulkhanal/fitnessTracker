@@ -11,10 +11,7 @@ export const isExpoGo = (): boolean =>
 export const canUseNativeMediaLibrary = (): boolean => !isExpoGo();
 
 export const EXPO_GO_VIDEO_EXPORT_HINT =
-  'Progress video export uses on-device encoding and requires a development or production build. In Expo Go, use the in-app slideshow or share individual frames.';
+  'MP4 video export is temporarily unavailable. Use the in-app slideshow or share before/after images instead.';
 
-/**
- * Native PNG → MP4 via expo-image-sequence-encoder (not in the Expo Go binary).
- * Dev/production builds include the native module after `expo prebuild` / EAS build.
- */
-export const canUseProgressVideoExport = (): boolean => !isExpoGo();
+/** Disabled until a maintained native encoder is added — avoids broken Gradle native deps. */
+export const canUseProgressVideoExport = (): boolean => false;

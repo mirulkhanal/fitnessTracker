@@ -38,7 +38,6 @@
     "expo-image": "~3.0.10",
     "expo-image-manipulator": "~14.0.7",
     "expo-image-picker": "~17.0.8",
-    "expo-image-sequence-encoder": "^0.1.16",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.8",
     "expo-local-authentication": "~17.0.8",
@@ -66,13 +65,13 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@types/node": "^20.19.0",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
     "@types/react": "~19.1.0",
     "eas-cli": "^16.32.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
-    "expo-dev-client": "~6.0.20",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
     "react-native-svg-transformer": "^1.5.1",

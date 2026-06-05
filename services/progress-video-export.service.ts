@@ -14,11 +14,9 @@ import {
 } from '@/constants/progress-video-export';
 import { beforeAfterShareService } from '@/services/before-after-share.service';
 import { ProgressImage } from '@/types/photo.types';
-import {
-  canUseNativeMediaLibrary,
-  canUseProgressVideoExport,
-  EXPO_GO_VIDEO_EXPORT_HINT,
-} from '@/utils/expo-runtime';
+import { canUseNativeMediaLibrary, EXPO_GO_VIDEO_EXPORT_HINT } from '@/utils/expo-runtime';
+
+const VIDEO_EXPORT_UNAVAILABLE = EXPO_GO_VIDEO_EXPORT_HINT;
 
 const CAPTURE_DELAY_MS = 500;
 const FRAME_PREFIX = 'frame-';
@@ -35,13 +33,6 @@ const ensureFramesDirectory = (): Directory => {
   }
   framesDir.create();
   return framesDir;
-};
-
-const loadEncoder = async () => {
-  if (!canUseProgressVideoExport()) {
-    throw new Error(EXPO_GO_VIDEO_EXPORT_HINT);
-  }
-  return await import('expo-image-sequence-encoder');
 };
 
 export type ProgressVideoCaptureContext = {
@@ -122,26 +113,8 @@ export const progressVideoExportService = {
     return framesDir;
   },
 
-  async encodeFramesDirectory(framesDir: Directory): Promise<string> {
-    const { encode } = await loadEncoder();
-    const outputFile = new File(Paths.cache, `fittrack-progress-${Date.now()}.mp4`);
-    if (outputFile.exists) {
-      outputFile.delete();
-    }
-
-    const folder = framesDir.uri.endsWith('/') ? framesDir.uri : `${framesDir.uri}/`;
-
-    await encode({
-      folder,
-      fps: PROGRESS_VIDEO_FPS,
-      width: PROGRESS_VIDEO_WIDTH,
-      height: PROGRESS_VIDEO_HEIGHT,
-      output: outputFile.uri,
-      container: 'mp4',
-    });
-
-    framesDir.delete();
-    return outputFile.uri;
+  async encodeFramesDirectory(_framesDir: Directory): Promise<string> {
+    throw new Error(VIDEO_EXPORT_UNAVAILABLE);
   },
 
   async exportVideo(context: ProgressVideoCaptureContext): Promise<string> {

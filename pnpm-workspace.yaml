@@ -1,9 +1,6 @@
 packages:
   - .
 
-patchedDependencies:
-  expo-image-sequence-encoder@0.1.16: patches/expo-image-sequence-encoder@0.1.16.patch
-
 ignoredBuiltDependencies:
   - dtrace-provider
   - dtrace-provider@0.8.8
