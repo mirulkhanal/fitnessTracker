@@ -1,4 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import type { ConfigContext, ExpoConfig } from 'expo/config';
+
+const extraProguardRules = readFileSync(join(__dirname, 'proguard-rules.pro'), 'utf8');
 
 const wrauthApiUrl = process.env.EXPO_PUBLIC_WRAUTH_API_URL?.trim() ?? '';
 const wrauthAppKey = process.env.EXPO_PUBLIC_WRAUTH_APP_KEY?.trim() ?? '';
@@ -52,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           usesCleartextTraffic: allowCleartext,
           enableMinifyInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
-          extraProguardRules: './proguard-rules.pro',
+          extraProguardRules,
         },
       },
     ],
