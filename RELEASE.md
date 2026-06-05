@@ -50,28 +50,32 @@ For automated releases, add these in **Settings → Secrets and variables → Ac
 
 Use this to produce a real installable APK on your PC, then copy it to your phone or `adb install`.
 
-### One-time setup
+### One-time setup (no Android Studio)
 
-1. **JDK 17+** — e.g. `sudo apt install openjdk-17-jdk`
-2. **Android Studio** (or SDK command-line tools) — install SDK Platform 36 and Build-Tools 36
-3. **Environment** (add to `~/.bashrc`):
+Only the JDK and Google's **command-line SDK tools** — no IDE, no emulator images.
 
 ```bash
-export ANDROID_HOME="$HOME/Android/Sdk"
-export PATH="$PATH:$ANDROID_HOME/platform-tools"
-```
+sudo apt install openjdk-17-jdk unzip curl ca-certificates
 
-4. **App config**:
+cd fitnessTracker
+pnpm install
+pnpm setup:android-sdk    # downloads SDK into .android-sdk/ (~2–4 GB once)
+source .android-sdk.env   # sets ANDROID_HOME for this shell
 
-```bash
 cp .env.example .env
 # Edit .env with your wrAuth URL and app key
+```
+
+Add to `~/.bashrc` if you want `ANDROID_HOME` in every terminal:
+
+```bash
+source /path/to/fitnessTracker/.android-sdk.env
 ```
 
 ### Build APK
 
 ```bash
-pnpm install
+source .android-sdk.env   # if not already loaded
 pnpm build:android:local          # release APK (matches EAS minify/R8)
 # or
 pnpm build:android:local:debug    # faster debug APK

@@ -44,3 +44,7 @@ app-example
 # generated native folders
 /ios
 /android
+
+# headless local Android SDK (scripts/setup-android-sdk.sh)
+.android-sdk/
+.android-sdk.env

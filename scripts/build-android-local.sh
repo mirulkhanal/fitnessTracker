@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Build an installable Android APK locally (no EAS credits).
-# Requires: JDK 17+, Android SDK (ANDROID_HOME), pnpm deps installed, .env with wrAuth vars.
+# Build an installable Android APK locally (no EAS credits, no Android Studio).
+# Requires: JDK 17+, headless SDK from scripts/setup-android-sdk.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
+
+# shellcheck disable=SC1091
+source "$ROOT/scripts/android-sdk-env.sh"
 
 VARIANT="release"
 INSTALL=0
@@ -16,13 +19,11 @@ Usage: ./scripts/build-android-local.sh [--debug] [--install]
   --debug     Faster debug APK (skips R8 minify). Good for quick device smoke tests.
   --install   adb install -r the APK when a device is connected.
 
-Prerequisites (Debian/Ubuntu example):
-  sudo apt install openjdk-17-jdk
-  # Install Android Studio, then set:
-  export ANDROID_HOME="$HOME/Android/Sdk"
-  export PATH="$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin"
-
-  cp .env.example .env   # set wrAuth URL + app key before building
+One-time headless SDK setup (no Android Studio):
+  sudo apt install openjdk-17-jdk unzip curl ca-certificates
+  pnpm setup:android-sdk
+  source .android-sdk.env
+  cp .env.example .env
 EOF
 }
 
@@ -37,24 +38,32 @@ while [[ $# -gt 0 ]]; do
 done
 
 if ! command -v java >/dev/null 2>&1; then
-  echo "error: java not found. Install JDK 17+ (e.g. openjdk-17-jdk)." >&2
+  echo "error: java not found. Install JDK 17+:" >&2
+  echo "  sudo apt install openjdk-17-jdk" >&2
   exit 1
 fi
 
 if [[ -z "${ANDROID_HOME:-}" ]] || [[ ! -d "$ANDROID_HOME" ]]; then
-  echo "error: ANDROID_HOME is not set or does not exist." >&2
-  echo "Install Android Studio or command-line tools and export ANDROID_HOME." >&2
+  echo "error: ANDROID_HOME is not set." >&2
+  echo "Run: pnpm setup:android-sdk && source .android-sdk.env" >&2
   exit 1
 fi
 
 if [[ ! -x "$ANDROID_HOME/platform-tools/adb" ]]; then
-  echo "error: adb not found at $ANDROID_HOME/platform-tools/adb" >&2
+  echo "error: adb not found. Re-run: pnpm setup:android-sdk" >&2
+  exit 1
+fi
+
+if [[ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]]; then
+  echo "error: sdkmanager not found. Re-run: pnpm setup:android-sdk" >&2
   exit 1
 fi
 
 if [[ ! -f .env ]]; then
   echo "warning: .env missing — copy .env.example and set wrAuth values for a working app." >&2
 fi
+
+echo "==> Using ANDROID_HOME=$ANDROID_HOME"
 
 echo "==> Ensuring node dependencies"
 pnpm install --frozen-lockfile
