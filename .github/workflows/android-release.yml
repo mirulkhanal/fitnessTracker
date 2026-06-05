@@ -1,8 +1,7 @@
 name: Android Release
 
 on:
-  push:
-    branches: [master]
+  # Manual only — avoids burning EAS credits on every push.
   workflow_dispatch:
     inputs:
       profile:

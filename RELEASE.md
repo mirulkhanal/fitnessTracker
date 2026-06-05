@@ -46,20 +46,62 @@ For automated releases, add these in **Settings → Secrets and variables → Ac
 | `EXPO_PUBLIC_WRAUTH_API_URL` | Public wrAuth API URL for release builds |
 | `EXPO_PUBLIC_WRAUTH_APP_KEY` | wrAuth app API key |
 
-## Build locally (manual)
+## Build locally on your machine (no EAS credits)
+
+Use this to produce a real installable APK on your PC, then copy it to your phone or `adb install`.
+
+### One-time setup
+
+1. **JDK 17+** — e.g. `sudo apt install openjdk-17-jdk`
+2. **Android Studio** (or SDK command-line tools) — install SDK Platform 36 and Build-Tools 36
+3. **Environment** (add to `~/.bashrc`):
+
+```bash
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$PATH:$ANDROID_HOME/platform-tools"
+```
+
+4. **App config**:
 
 ```bash
 cp .env.example .env
 # Edit .env with your wrAuth URL and app key
-
-pnpm install
-eas build --platform android --profile release
 ```
 
-When the build finishes, download the installable APK from the Expo dashboard or:
+### Build APK
 
 ```bash
-eas build:download --platform android --profile release --latest --output FitTrack.apk
+pnpm install
+pnpm build:android:local          # release APK (matches EAS minify/R8)
+# or
+pnpm build:android:local:debug    # faster debug APK
+# or, with USB debugging:
+pnpm build:android:local:install  # build release + adb install
+```
+
+Output: `dist/fittrack-release-YYYYMMDD-HHMMSS.apk`
+
+Verify before installing:
+
+```bash
+file dist/fittrack-release-*.apk    # should say "Android package"
+unzip -t dist/fittrack-release-*.apk
+```
+
+### Why GitHub / bundletool may both fail
+
+If the workflow uploaded an **AAB renamed as `.apk`**, Android cannot install it and **bundletool** may also fail if the file is corrupt, truncated, or not a valid bundle. Always run `file` and `unzip -t` on downloads.
+
+## Build on EAS (cloud, uses credits)
+
+```bash
+pnpm build:android:release
+```
+
+When the build finishes, download from the Expo dashboard or:
+
+```bash
+pnpm dlx eas-cli@16.32.0 build:download --platform android --profile release --latest --output FitTrack.apk
 ```
 
 For Google Play submission (AAB, not directly installable):
@@ -75,11 +117,11 @@ Preview builds (same APK format, internal distribution):
 eas build --platform android --profile preview
 ```
 
-## Automatic GitHub Releases (recommended)
+## GitHub Releases (manual EAS workflow)
 
-The [Android Release](.github/workflows/android-release.yml) workflow now runs automatically on every push to `master`.
+The [Android Release](.github/workflows/android-release.yml) workflow is **manual only** (Actions → Run workflow) so it does not spend EAS credits on every push.
 
-For `release` profile runs (default on push to `master`), it will:
+For `release` profile runs, it will:
 
 1. Build an installable Android APK on EAS.
 2. Resolve the next semver tag from commit messages since the last `v*` tag:
