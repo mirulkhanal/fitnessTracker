@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  expo-image-sequence-encoder@0.1.16:
+    hash: cf9c4d7d56f259f555623743ef559e22b48442bffbdfe4cb587a1d3c31a0817e
+    path: patches/expo-image-sequence-encoder@0.1.16.patch
+
 importers:
 
   .:
@@ -73,7 +78,7 @@ importers:
         version: 17.0.11(expo@54.0.35)
       expo-image-sequence-encoder:
         specifier: ^0.1.16
-        version: 0.1.16(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+        version: 0.1.16(patch_hash=cf9c4d7d56f259f555623743ef559e22b48442bffbdfe4cb587a1d3c31a0817e)(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
       expo-linear-gradient:
         specifier: ~15.0.8
         version: 15.0.8(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
@@ -10113,7 +10118,7 @@ snapshots:
       expo: 54.0.35(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(graphql@16.8.1)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       expo-image-loader: 6.0.0(expo@54.0.35)
 
-  expo-image-sequence-encoder@0.1.16(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+  expo-image-sequence-encoder@0.1.16(patch_hash=cf9c4d7d56f259f555623743ef559e22b48442bffbdfe4cb587a1d3c31a0817e)(expo@54.0.35)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
     dependencies:
       expo: 54.0.35(@babel/core@7.29.7)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(graphql@16.8.1)(react-native@0.81.5(@babel/core@7.29.7)(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react: 19.1.0

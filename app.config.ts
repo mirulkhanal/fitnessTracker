@@ -4,13 +4,29 @@ const wrauthApiUrl = process.env.EXPO_PUBLIC_WRAUTH_API_URL?.trim() ?? '';
 const wrauthAppKey = process.env.EXPO_PUBLIC_WRAUTH_APP_KEY?.trim() ?? '';
 
 /** `__DEV__` is not available when Node evaluates app.config — use build env instead. */
-const isEasProductionBuild = process.env.EAS_BUILD_PROFILE === 'production';
+const easBuildProfile = process.env.EAS_BUILD_PROFILE;
+const isEasProductionBuild = easBuildProfile === 'production';
+const isEasStoreBuild = easBuildProfile === 'production' || easBuildProfile === 'preview';
 const allowCleartext =
   !isEasProductionBuild &&
   (process.env.EXPO_PUBLIC_ALLOW_CLEARTEXT === 'true' || wrauthApiUrl.startsWith('http://'));
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
+export default ({ config }: ConfigContext): ExpoConfig => {
+  const autolinking =
+    isEasStoreBuild
+      ? {
+          ...(config as { autolinking?: { exclude?: string[] } }).autolinking,
+          exclude: [
+            ...((config as { autolinking?: { exclude?: string[] } }).autolinking?.exclude ??
+              []),
+            'expo-dev-client',
+          ],
+        }
+      : (config as { autolinking?: object }).autolinking;
+
+  return {
   ...config,
+  ...(autolinking ? { autolinking } : {}),
   name: 'FitTrack Progress',
   slug: 'FitnessTracker',
   userInterfaceStyle: 'dark',
@@ -33,7 +49,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     ...config.android,
     package: 'com.fittrack.progress',
-    versionCode: config.android?.versionCode ?? 1,
     adaptiveIcon: {
       backgroundColor: '#051424',
       foregroundImage: './assets/images/android-icon-foreground.png',
@@ -53,7 +68,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           usesCleartextTraffic: allowCleartext,
           enableMinifyInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
-          extraProguardRules: './android/proguard-rules.pro',
+          extraProguardRules: './proguard-rules.pro',
         },
       },
     ],
@@ -108,4 +123,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         : {}),
     },
   },
-});
+} as ExpoConfig;
+};
