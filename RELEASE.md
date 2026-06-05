@@ -121,24 +121,34 @@ Preview builds (same APK format, internal distribution):
 eas build --platform android --profile preview
 ```
 
-## GitHub Releases (manual EAS workflow)
+## Publish APK to GitHub Releases
 
-The [Android Release](.github/workflows/android-release.yml) workflow is **manual only** (Actions → Run workflow) so it does not spend EAS credits on every push.
+### From your machine (after local build)
 
-For `release` profile runs, it will:
+```bash
+# upload the APK you already built
+pnpm release:github -- dist/fittrack-debug-20260605-133331.apk
 
-1. Build an installable Android APK on EAS.
-2. Resolve the next semver tag from commit messages since the last `v*` tag:
-   - `BREAKING CHANGE` or `type!:` -> major bump
-   - `feat:` -> minor bump
-   - everything else -> patch bump
-3. Generate release notes from commit subjects.
-4. Create (or update on rerun) the GitHub release and upload `FitTrack-Progress-vX.Y.Z.apk`.
+# or upload the newest APK in dist/
+pnpm release:github
 
-### Why reruns now work reliably
+# build debug APK + publish in one step
+pnpm release:local
+```
 
-The pipeline stores the exact EAS build ID from the build step and downloads by that ID.
-It does not rely on "latest build", so failed/retried workflows remain deterministic.
+Requires `gh` CLI: `sudo apt install gh && gh auth login`
+
+This creates (or updates) a GitHub Release with an auto semver tag (`vX.Y.Z`) and attaches `FitTrack-Progress-vX.Y.Z.apk`.
+
+### Automatic on push to master (GitHub Actions, no EAS credits)
+
+The [Android Release](.github/workflows/android-release.yml) workflow:
+
+1. Builds APK locally on GitHub Actions (Gradle, not EAS)
+2. Resolves next semver tag from commits since last `v*` tag
+3. Creates/updates GitHub Release and uploads `FitTrack-Progress-vX.Y.Z.apk`
+
+Manual run: **Actions → Android Release → Run workflow** (choose `debug` or `release` variant).
 
 ### Manual runs
 

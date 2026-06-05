@@ -1,18 +1,18 @@
 name: Android Release
 
 on:
-  # Manual only — avoids burning EAS credits on every push.
+  push:
+    branches: [master]
   workflow_dispatch:
     inputs:
-      profile:
-        description: EAS build profile
+      variant:
+        description: APK build variant (debug is faster and more reliable on CI)
         required: true
-        default: release
+        default: debug
         type: choice
         options:
+          - debug
           - release
-          - production
-          - preview
 
 permissions:
   contents: write
@@ -22,15 +22,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-android:
+  build-and-publish:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
       EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
-    outputs:
-      profile: ${{ steps.profile.outputs.value }}
-      build_id: ${{ steps.build.outputs.build_id }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout
@@ -46,6 +45,19 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Validate required secrets
+        run: |
+          if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ] || [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
+            echo "::error::Missing GitHub secrets: EXPO_PUBLIC_WRAUTH_API_URL or EXPO_PUBLIC_WRAUTH_APP_KEY"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
@@ -53,233 +65,60 @@ jobs:
       - name: Verify Expo SDK dependency versions
         run: pnpm verify:expo
 
-      - name: Validate required secrets
+      - name: Write .env for native build
         run: |
-          if [ -z "$EXPO_TOKEN" ]; then
-            echo "::error::Missing GitHub secret: EXPO_TOKEN"
-            exit 1
-          fi
-          if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ] || [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
-            echo "::error::Missing GitHub secrets: EXPO_PUBLIC_WRAUTH_API_URL or EXPO_PUBLIC_WRAUTH_APP_KEY"
-            exit 1
-          fi
+          printf 'EXPO_PUBLIC_WRAUTH_API_URL=%s\n' "$EXPO_PUBLIC_WRAUTH_API_URL" > .env
+          printf 'EXPO_PUBLIC_WRAUTH_APP_KEY=%s\n' "$EXPO_PUBLIC_WRAUTH_APP_KEY" >> .env
 
-      - name: Print resolved wrAuth config (pre-build)
-        run: |
-          echo "Resolved EXPO_PUBLIC_WRAUTH_API_URL: $EXPO_PUBLIC_WRAUTH_API_URL"
-          pnpm exec expo config --json | jq -r '.extra.wrauthApiUrl // "<empty>"' | sed 's/^/expo config extra.wrauthApiUrl: /'
+      - name: Cache Android SDK and Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            .android-sdk
+            .gradle-local
+          key: android-${{ runner.os }}-${{ hashFiles('scripts/setup-android-sdk.sh') }}
+          restore-keys: |
+            android-${{ runner.os }}-
 
-      - name: Set build profile
-        id: profile
+      - name: Setup Android SDK
+        run: pnpm setup:android-sdk
+
+      - name: Set build variant
+        id: variant
         run: |
-          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'release' }}"
+          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.variant || 'debug' }}"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
-      - name: Build Android APK on EAS
-        id: build
+      - name: Build APK locally
         run: |
-          PROFILE="${{ steps.profile.outputs.value }}"
-          echo "Building with profile: $PROFILE"
-          BUILD_JSON=$(pnpm dlx eas-cli@16.32.0 build \
-            --platform android \
-            --profile "$PROFILE" \
-            --non-interactive \
-            --wait \
-            --json)
-          echo "$BUILD_JSON" > eas-build.json
-          BUILD_ID=$(jq -r 'if type=="array" then .[0].id else .id end' eas-build.json)
-          if [ -z "$BUILD_ID" ] || [ "$BUILD_ID" = "null" ]; then
-            echo "::error::Could not parse EAS build id from output"
-            exit 1
+          source .android-sdk.env
+          if [ "${{ steps.variant.outputs.value }}" = "release" ]; then
+            pnpm build:android:local
+          else
+            pnpm build:android:local:debug
           fi
-          echo "build_id=$BUILD_ID" >> "$GITHUB_OUTPUT"
 
-  publish-release:
-    needs: build-android
-    if: needs.build-android.outputs.profile == 'release' && github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Resolve next tag and release notes
+      - name: Resolve release version
         id: version
+        env:
+          RELEASE_VARIANT: ${{ steps.variant.outputs.value }}
+        run: python3 scripts/resolve-release-version.py
+
+      - name: Publish GitHub Release
         run: |
-          python3 - <<'PY'
-          import os
-          import re
-          import subprocess
-          from pathlib import Path
-
-          def run(cmd: str) -> str:
-            return subprocess.check_output(cmd, shell=True, text=True).strip()
-
-          tags_at_head_raw = run("git tag --points-at HEAD -l 'v*' --sort=-version:refname")
-          tags_at_head = [t for t in tags_at_head_raw.splitlines() if t]
-          if tags_at_head:
-            tag = tags_at_head[0]
-            release_name = f"FitTrack Progress {tag}"
-            notes = "\n".join([
-              "## Release rerun",
-              "",
-              "This workflow rerun re-published artifacts for an existing tag.",
-              "",
-              f"Tag: {tag}",
-              f"Source commit: {os.environ['GITHUB_SHA']}",
-            ])
-            Path("release-notes.md").write_text(notes + "\n", encoding="utf-8")
-            with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write(f"tag={tag}\n")
-              f.write(f"release_name={release_name}\n")
-            raise SystemExit(0)
-
-          tags_raw = run("git tag -l 'v*' --sort=-version:refname")
-          tags = [t for t in tags_raw.splitlines() if t]
-          last_tag = tags[0] if tags else None
-
-          if last_tag:
-            commit_messages = run(f"git log --format=%B {last_tag}..HEAD")
-            commits_short = run(f"git log --pretty=format:'- %s (%h)' {last_tag}..HEAD")
-            base = last_tag[1:]
-          else:
-            commit_messages = run("git log --format=%B")
-            commits_short = run("git log --pretty=format:'- %s (%h)'")
-            base = "0.0.0"
-
-          if not commits_short.strip():
-            commits_short = "- chore: no new commits found"
-
-          parts = [int(p) for p in base.split(".")]
-          while len(parts) < 3:
-            parts.append(0)
-          major, minor, patch = parts[:3]
-
-          bump = "patch"
-          if "BREAKING CHANGE" in commit_messages or re.search(r"^[a-zA-Z]+(\(.+\))?!:", commit_messages, re.MULTILINE):
-            bump = "major"
-          elif re.search(r"^feat(\(.+\))?:", commit_messages, re.MULTILINE):
-            bump = "minor"
-
-          if bump == "major":
-            major += 1
-            minor = 0
-            patch = 0
-          elif bump == "minor":
-            minor += 1
-            patch = 0
-          else:
-            patch += 1
-
-          tag = f"v{major}.{minor}.{patch}"
-          release_name = f"FitTrack Progress {tag}"
-          previous = last_tag if last_tag else "initial release"
-          notes = "\n".join([
-            f"## Changes since {previous}",
-            "",
-            commits_short,
-            "",
-            f"Build profile: production",
-            f"Source commit: {os.environ['GITHUB_SHA']}",
-          ])
-
-          Path("release-notes.md").write_text(notes + "\n", encoding="utf-8")
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-            f.write(f"tag={tag}\n")
-            f.write(f"release_name={release_name}\n")
-          PY
-
-      - name: Download APK by deterministic EAS build id
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          BUILD_ID="${{ needs.build-android.outputs.build_id }}"
-          BUILD_META=$(pnpm dlx eas-cli@16.32.0 build:view "$BUILD_ID" --json)
-          BUILD_URL=$(echo "$BUILD_META" | jq -r '.artifacts.applicationArchiveUrl')
-          BUILD_TYPE=$(echo "$BUILD_META" | jq -r '.buildType // .metadata.buildType // empty')
-          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
-            echo "::error::Failed to resolve build artifact URL for build id: $BUILD_ID"
-            exit 1
-          fi
-          if [ "$BUILD_TYPE" = "app-bundle" ] || [[ "$BUILD_URL" == *.aab* ]]; then
-            echo "::error::Build $BUILD_ID produced an AAB, not an installable APK. Use the release profile for GitHub releases."
-            exit 1
-          fi
-          OUTPUT_FILE="FitTrack-Progress-${TAG}.apk"
-          curl -L --fail "$BUILD_URL" -o "$OUTPUT_FILE"
-          file "$OUTPUT_FILE"
-          unzip -t "$OUTPUT_FILE" >/dev/null
-          ls -lh "$OUTPUT_FILE"
-
-      - name: Create or update GitHub release
-        run: |
+          APK="$(ls -t dist/fittrack-*.apk | head -1)"
           TAG="${{ steps.version.outputs.tag }}"
           TITLE="${{ steps.version.outputs.release_name }}"
-          FILE="FitTrack-Progress-${TAG}.apk"
+          RELEASE_APK="FitTrack-Progress-${TAG}.apk"
+          cp "$APK" "$RELEASE_APK"
+          file "$RELEASE_APK"
+          unzip -t "$RELEASE_APK" >/dev/null
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release edit "$TAG" --title "$TITLE" --notes-file release-notes.md
-            gh release upload "$TAG" "$FILE" --clobber
+            gh release upload "$TAG" "$RELEASE_APK" --clobber
           else
-            gh release create "$TAG" "$FILE" \
+            gh release create "$TAG" "$RELEASE_APK" \
               --target "$GITHUB_SHA" \
               --title "$TITLE" \
               --notes-file release-notes.md
           fi
-
-  upload-preview-artifact:
-    needs: build-android
-    if: needs.build-android.outputs.profile == 'preview'
-    runs-on: ubuntu-latest
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Download preview APK by build id
-        run: |
-          BUILD_ID="${{ needs.build-android.outputs.build_id }}"
-          FILE="FitTrack-Progress-preview-${GITHUB_SHA::7}.apk"
-          BUILD_URL=$(pnpm dlx eas-cli@16.32.0 build:view "$BUILD_ID" --json | jq -r '.artifacts.applicationArchiveUrl')
-          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
-            echo "::error::Failed to resolve build artifact URL for build id: $BUILD_ID"
-            exit 1
-          fi
-          curl -L --fail "$BUILD_URL" -o "$FILE"
-          ls -lh "$FILE"
-
-      - name: Upload preview artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: fittrack-android-preview
-          path: FitTrack-Progress-preview-*.apk
-          if-no-files-found: error
