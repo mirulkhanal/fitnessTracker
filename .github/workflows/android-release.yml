@@ -8,9 +8,10 @@ on:
       profile:
         description: EAS build profile
         required: true
-        default: production
+        default: release
         type: choice
         options:
+          - release
           - production
           - preview
 
@@ -72,7 +73,7 @@ jobs:
       - name: Set build profile
         id: profile
         run: |
-          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}"
+          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'release' }}"
           echo "value=$VALUE" >> "$GITHUB_OUTPUT"
 
       - name: Build Android APK on EAS
@@ -96,7 +97,7 @@ jobs:
 
   publish-release:
     needs: build-android
-    if: needs.build-android.outputs.profile == 'production' && github.ref == 'refs/heads/master'
+    if: needs.build-android.outputs.profile == 'release' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -210,13 +211,21 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           BUILD_ID="${{ needs.build-android.outputs.build_id }}"
-          OUTPUT_FILE="FitTrack-Progress-${TAG}.apk"
-          BUILD_URL=$(pnpm dlx eas-cli@16.32.0 build:view "$BUILD_ID" --json | jq -r '.artifacts.applicationArchiveUrl')
+          BUILD_META=$(pnpm dlx eas-cli@16.32.0 build:view "$BUILD_ID" --json)
+          BUILD_URL=$(echo "$BUILD_META" | jq -r '.artifacts.applicationArchiveUrl')
+          BUILD_TYPE=$(echo "$BUILD_META" | jq -r '.buildType // .metadata.buildType // empty')
           if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
             echo "::error::Failed to resolve build artifact URL for build id: $BUILD_ID"
             exit 1
           fi
+          if [ "$BUILD_TYPE" = "app-bundle" ] || [[ "$BUILD_URL" == *.aab* ]]; then
+            echo "::error::Build $BUILD_ID produced an AAB, not an installable APK. Use the release profile for GitHub releases."
+            exit 1
+          fi
+          OUTPUT_FILE="FitTrack-Progress-${TAG}.apk"
           curl -L --fail "$BUILD_URL" -o "$OUTPUT_FILE"
+          file "$OUTPUT_FILE"
+          unzip -t "$OUTPUT_FILE" >/dev/null
           ls -lh "$OUTPUT_FILE"
 
       - name: Create or update GitHub release

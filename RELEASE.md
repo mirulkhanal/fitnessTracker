@@ -1,6 +1,6 @@
 # Releasing FitTrack Progress (Android)
 
-**Production** EAS builds use **Android App Bundle (AAB)** for Google Play. **Preview** and **development** profiles may still produce APKs for sideloading.
+**GitHub Releases** use the `release` profile (installable **APK**). **Production** uses **AAB** for Google Play via `eas submit`. **Preview** also builds APKs for sideloading.
 
 Set `EXPO_PUBLIC_PRIVACY_POLICY_URL` to your hosted `PRIVACY.md` (or equivalent) before Play submission. Account deletion is available in **Settings → Delete account**.
 
@@ -53,13 +53,20 @@ cp .env.example .env
 # Edit .env with your wrAuth URL and app key
 
 pnpm install
-eas build --platform android --profile production
+eas build --platform android --profile release
 ```
 
-When the build finishes, download the APK from the Expo dashboard or:
+When the build finishes, download the installable APK from the Expo dashboard or:
 
 ```bash
-eas build:download --platform android --profile production --latest --output FitTrack.apk
+eas build:download --platform android --profile release --latest --output FitTrack.apk
+```
+
+For Google Play submission (AAB, not directly installable):
+
+```bash
+eas build --platform android --profile production
+eas submit --platform android --profile production
 ```
 
 Preview builds (same APK format, internal distribution):
@@ -72,9 +79,9 @@ eas build --platform android --profile preview
 
 The [Android Release](.github/workflows/android-release.yml) workflow now runs automatically on every push to `master`.
 
-For `production` profile runs, it will:
+For `release` profile runs (default on push to `master`), it will:
 
-1. Build Android APK on EAS.
+1. Build an installable Android APK on EAS.
 2. Resolve the next semver tag from commit messages since the last `v*` tag:
    - `BREAKING CHANGE` or `type!:` -> major bump
    - `feat:` -> minor bump

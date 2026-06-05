@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test utils/__tests__/workout-streak.test.ts",
     "build:android:preview": "pnpm dlx eas-cli@16.32.0 build --platform android --profile preview --non-interactive",
+    "build:android:release": "pnpm dlx eas-cli@16.32.0 build --platform android --profile release --non-interactive",
     "build:android:production": "pnpm dlx eas-cli@16.32.0 build --platform android --profile production --non-interactive",
     "verify:expo": "expo install --check",
     "prepare": "husky"
