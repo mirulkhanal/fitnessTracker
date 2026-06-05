@@ -26,7 +26,7 @@ export const dataExportService = {
         timestamp: photo.timestamp,
         categories: photo.categories,
       })),
-      note: 'Photo image files remain encrypted on device and in wrAuth storage; this export is metadata only.',
+      note: 'Photo blobs remain encrypted in wrAuth storage; this export is metadata only.',
     };
 
     const file = new File(Paths.cache, `fittrack-export-${Date.now()}.json`);

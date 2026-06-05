@@ -423,5 +423,25 @@ export const wrAuthClient = {
     });
   },
 
+  listStorageObjects: (
+    accessToken: string,
+    purpose?: 'avatar' | 'progress_photo' | 'photo_vault_key'
+  ) => {
+    const query = purpose ? `?purpose=${encodeURIComponent(purpose)}` : '';
+    return authRequest<{
+      objects: Array<{
+        id: string;
+        purpose: string;
+        content_type: string;
+        byte_size: number;
+        created_at: string;
+      }>;
+    }>({
+      path: `/storage/objects${query}`,
+      method: 'GET',
+      accessToken,
+    }).then(result => result.objects);
+  },
+
   isSessionTokens,
 };

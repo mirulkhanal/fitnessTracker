@@ -68,7 +68,7 @@ Categories and photo **metadata** live in wrAuth (`/data/categories`, `/data/pho
 
 **Per-user privacy:** wrAuth automatically adds an `owner_user_id` system column to every data table (new and existing). List/create/update/delete APIs only return rows owned by the signed-in user when that column is present.
 
-**Cross-device sync:** progress photos and avatars are uploaded to wrAuth object storage (`POST /storage/objects`). Metadata `local_id` stores a `wrauth-storage://{objectId}` reference. The photo encryption key is synced to storage under purpose `photo_vault_key` so another device can decrypt.
+**Cross-device sync:** progress photos are compressed, encrypted client-side, and uploaded to wrAuth object storage (`POST /storage/objects`). Metadata `local_id` stores a `wrauth-storage://{objectId}` reference. The encryption key lives in wrAuth under purpose `photo_vault_key` and is loaded into memory on sign-in — no photo files are stored on device. Decrypted images are kept in a session memory cache only (cleared on sign-out). On fetch: download ciphertext → decrypt in RAM → display as a data URI.
 
 Create these tables in wrAuth admin (replace `{APP_ID}`). You do **not** need to declare `owner_user_id` — wrAuth adds it automatically:
 

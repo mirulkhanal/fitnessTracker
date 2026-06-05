@@ -1,17 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
+import { isWrAuthStorageRef } from '@/constants/wrauth-storage';
 import { authSessionService } from '@/services/auth-session.service';
 import { biometricAuthService } from '@/services/biometric-auth.service';
+import { photoVaultService } from '@/services/photo-vault.service';
+import { photosService } from '@/services/photos.service';
 import { executeWithAccessTokenRetry } from '@/services/wrauth-session-refresh.service';
 import { wrAuthClient } from '@/services/wrauth.client';
 import { wrAuthDataService } from '@/services/wrauth-data.service';
 import { wrAuthStorageService } from '@/services/wrauth-storage.service';
-import { isWrAuthStorageRef } from '@/constants/wrauth-storage';
 
 const VAULT_REF_STORAGE_KEY = '@fitnesstracker/photo_vault_storage_ref';
 
-const deleteLocalVault = async () => {
+/** Remove legacy on-disk photo files from older app versions. */
+const deleteLegacyLocalPhotoFiles = async () => {
   const encryptedDir = new Directory(Paths.document, 'encrypted-photos');
   const previewDir = new Directory(Paths.cache, 'photo-previews');
   const keyFile = new File(Paths.document, 'photo-key.bin');
@@ -32,7 +35,6 @@ const deleteLocalVault = async () => {
   } catch {
     // Best effort.
   }
-  await AsyncStorage.multiRemove([VAULT_REF_STORAGE_KEY]);
 };
 
 export const accountDeletionService = {
@@ -75,7 +77,10 @@ export const accountDeletionService = {
       await wrAuthClient.logout(session.refresh_token).catch(() => undefined);
     }
 
-    await deleteLocalVault();
+    photosService.clearSessionCache();
+    photoVaultService.clear();
+    await photoVaultService.clearStoredVaultRef();
+    await deleteLegacyLocalPhotoFiles();
     await biometricAuthService.disable();
     await authSessionService.setSession(null);
   },

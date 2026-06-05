@@ -1,17 +1,16 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import { isWrAuthStorageRef } from '@/constants/wrauth-storage';
 import { dataMigrationService } from '@/services/data-migration.service';
+import { photoSessionCache } from '@/services/photo-session-cache.service';
+import { photoVaultService } from '@/services/photo-vault.service';
 import { wrAuthDataService } from '@/services/wrauth-data.service';
 import { wrAuthStorageService } from '@/services/wrauth-storage.service';
 import { ProgressImage } from '@/types/photo.types';
-import { base64ToBytes } from '@/utils/bytes-base64';
+import { bytesToBase64, base64ToBytes } from '@/utils/bytes-base64';
 import { parseCategoryIds, serializeCategoryIds } from '@/utils/parse-category-ids';
-import { compressImageForStorage, createPreviewFromUri } from '@/utils/compress-image';
+import { compressImageForStorage } from '@/utils/compress-image';
 import { parseTimestampMs } from '@/utils/parse-timestamp';
 import { decryptPhotoBytes, encryptPhotoBytes } from '@/utils/photo-crypto';
-import * as Crypto from 'expo-crypto';
-import { Directory, File, Paths, readAsStringAsync } from 'expo-file-system';
+import { File, readAsStringAsync } from 'expo-file-system';
 
 interface PhotoRow {
   id: string;
@@ -21,30 +20,14 @@ interface PhotoRow {
   captured_at: string;
   categories: unknown;
 }
-const ENCRYPTED_DIR = new Directory(Paths.document, 'encrypted-photos');
-const PREVIEW_DIR = new Directory(Paths.cache, 'photo-previews');
-const KEY_FILE = new File(Paths.document, 'photo-key.bin');
-const VAULT_REF_STORAGE_KEY = '@fitnesstracker/photo_vault_storage_ref';
 
-const toPublicUrl = (path: string) => {
-  if (!path) {
-    return '';
-  }
-  if (
-    path.startsWith('http://') ||
-    path.startsWith('https://') ||
-    path.startsWith('file://') ||
-    path.startsWith('content://') ||
-    path.startsWith('ph://')
-  ) {
-    return path;
-  }
-  return path;
-};
+const JPEG_DATA_URI_PREFIX = 'data:image/jpeg;base64,';
+
+const toDataUri = (jpegBytes: Uint8Array): string => `${JPEG_DATA_URI_PREFIX}${bytesToBase64(jpegBytes)}`;
 
 const mapPhoto = (row: PhotoRow, uriOverride?: string): ProgressImage => ({
   id: String(row.id),
-  uri: uriOverride ?? toPublicUrl(row.local_id),
+  uri: uriOverride ?? row.local_id,
   width: row.width ?? 0,
   height: row.height ?? 0,
   timestamp: parseTimestampMs(row.captured_at),
@@ -55,61 +38,6 @@ const ensureSynced = async () => {
   await dataMigrationService.migrateLocalDataToWrAuthIfNeeded();
 };
 
-const ensureStorageReady = () => {
-  ENCRYPTED_DIR.create({ intermediates: true, idempotent: true });
-  PREVIEW_DIR.create({ intermediates: true, idempotent: true });
-};
-
-const loadVaultKeyFromRemote = async (): Promise<Uint8Array | null> => {
-  const storageRef = await AsyncStorage.getItem(VAULT_REF_STORAGE_KEY);
-  if (!storageRef || !isWrAuthStorageRef(storageRef)) {
-    return null;
-  }
-  try {
-    return await wrAuthStorageService.downloadBytes(storageRef);
-  } catch {
-    return null;
-  }
-};
-
-const persistVaultKeyToRemote = async (keyBytes: Uint8Array): Promise<void> => {
-  const previousRef = await AsyncStorage.getItem(VAULT_REF_STORAGE_KEY);
-  if (previousRef && isWrAuthStorageRef(previousRef)) {
-    await wrAuthStorageService.deleteRef(previousRef).catch(() => undefined);
-  }
-  const storageRef = await wrAuthStorageService.uploadBytes(
-    'photo_vault_key',
-    keyBytes,
-    'application/octet-stream'
-  );
-  await AsyncStorage.setItem(VAULT_REF_STORAGE_KEY, storageRef);
-};
-
-const getOrCreateKey = async () => {
-  ensureStorageReady();
-  if (!KEY_FILE.exists) {
-    const remoteKey = await loadVaultKeyFromRemote();
-    if (remoteKey && remoteKey.length === 32) {
-      KEY_FILE.write(remoteKey);
-      return remoteKey;
-    }
-    const keyBytes = await Crypto.getRandomBytesAsync(32);
-    KEY_FILE.write(keyBytes);
-    void persistVaultKeyToRemote(keyBytes).catch(error => {
-      if (__DEV__) {
-        console.warn('[photos] Failed to sync vault key to wrAuth.', error);
-      }
-    });
-    return keyBytes;
-  }
-  return await KEY_FILE.bytes();
-};
-
-const getExtensionFromUri = (uri: string) => {
-  const match = uri.match(/\.([a-zA-Z0-9]+)(?:\?|#|$)/);
-  return match?.[1]?.toLowerCase() ?? 'jpg';
-};
-
 const readUriBytes = async (uri: string) => {
   if (uri.startsWith('file://')) {
     return await new File(uri).bytes();
@@ -118,145 +46,31 @@ const readUriBytes = async (uri: string) => {
   return base64ToBytes(base64);
 };
 
-const isEncryptedUri = (uri: string) => uri.includes('/encrypted-photos/') && uri.endsWith('.enc');
+const isCloudPhotoRef = (localId: string): boolean =>
+  isWrAuthStorageRef(localId) ||
+  localId.startsWith('http://') ||
+  localId.startsWith('https://');
 
-const localFileExists = (uri: string): boolean => {
-  if (!uri.startsWith('file://')) {
-    return false;
+const resolveDisplayUri = async (row: PhotoRow): Promise<string | null> => {
+  const cached = photoSessionCache.get(row.id);
+  if (cached) {
+    return cached;
   }
-  try {
-    return new File(uri).exists;
-  } catch {
-    return false;
-  }
-};
 
-const materializeStorageRef = async (storageRef: string): Promise<string> => {
-  const encryptedBytes = await wrAuthStorageService.downloadBytes(storageRef);
-  const encryptedFile = getEncryptedFile(storageRef);
-  encryptedFile.write(encryptedBytes);
-  return encryptedFile.uri;
-};
-
-const uploadEncryptedFileToStorage = async (encryptedUri: string): Promise<string> => {
-  const encryptedBytes = await new File(encryptedUri).bytes();
-  return await wrAuthStorageService.uploadBytes(
-    'progress_photo',
-    encryptedBytes,
-    'application/octet-stream'
-  );
-};
-
-const syncLocalRowsToRemoteStorage = async (rows: PhotoRow[]): Promise<void> => {
-  for (const row of rows) {
-    if (isWrAuthStorageRef(row.local_id)) {
-      continue;
-    }
-    if (!row.local_id.startsWith('file://') || !localFileExists(row.local_id)) {
-      continue;
-    }
-    try {
-      const storageRef = await uploadEncryptedFileToStorage(row.local_id);
-      await wrAuthDataService.updatePhotoMetadata(row.id, { local_id: storageRef });
-      row.local_id = storageRef;
-    } catch (error) {
-      if (__DEV__) {
-        console.warn('[photos] Failed to upload photo blob to wrAuth.', error);
-      }
-    }
-  }
-};
-
-const getEncryptedFile = (sourceUri: string) => {
-  const extension = getExtensionFromUri(sourceUri);
-  const fileName = `${Crypto.randomUUID()}.${extension}.enc`;
-  return new File(ENCRYPTED_DIR, fileName);
-};
-
-const getPreviewFileForEncrypted = (encryptedUri: string) => {
-  const encryptedFile = new File(encryptedUri);
-  const previewName = encryptedFile.name.endsWith('.enc')
-    ? encryptedFile.name.slice(0, -4)
-    : encryptedFile.name;
-  return new File(PREVIEW_DIR, previewName);
-};
-
-const writePreviewBytes = (encryptedUri: string, previewBytes: Uint8Array) => {
-  const previewFile = getPreviewFileForEncrypted(encryptedUri);
-  previewFile.write(previewBytes);
-  return previewFile.uri;
-};
-
-const ensurePreviewUri = async (encryptedUri: string) => {
-  const previewFile = getPreviewFileForEncrypted(encryptedUri);
-  if (previewFile.exists) {
-    return previewFile.uri;
-  }
-  const key = await getOrCreateKey();
-  const encryptedBytes = await new File(encryptedUri).bytes();
-  const decrypted = await decryptPhotoBytes(encryptedBytes, key);
-  return writePreviewBytes(encryptedUri, decrypted);
-};
-
-const migrateToEncrypted = async (row: PhotoRow) => {
-  if (!row.local_id || !row.local_id.startsWith('file://') || isEncryptedUri(row.local_id)) {
+  if (row.local_id.startsWith('http://') || row.local_id.startsWith('https://')) {
     return row.local_id;
   }
-  const key = await getOrCreateKey();
-  const sourceBytes = await readUriBytes(row.local_id);
-  const encryptedFile = getEncryptedFile(row.local_id);
-  const encryptedBytes = await encryptPhotoBytes(sourceBytes, key);
-  encryptedFile.write(encryptedBytes);
-  await wrAuthDataService.updatePhotoMetadata(row.id, { local_id: encryptedFile.uri });
-  try {
-    new File(row.local_id).delete();
-  } catch {}
-  return encryptedFile.uri;
-};
 
-const resolvePhotoUri = async (row: PhotoRow): Promise<string | null> => {
-  if (row.local_id.startsWith('http://') || row.local_id.startsWith('https://')) {
-    return toPublicUrl(row.local_id);
-  }
-
-  let encryptedUri = row.local_id;
-  if (isWrAuthStorageRef(row.local_id)) {
-    if (!localFileExists(encryptedUri)) {
-      encryptedUri = await materializeStorageRef(row.local_id);
-    }
-  } else {
-    encryptedUri = await migrateToEncrypted(row);
-    if (localFileExists(encryptedUri) && !isWrAuthStorageRef(row.local_id)) {
-      try {
-        const storageRef = await uploadEncryptedFileToStorage(encryptedUri);
-        await wrAuthDataService.updatePhotoMetadata(row.id, { local_id: storageRef });
-        row.local_id = storageRef;
-      } catch (error) {
-        if (__DEV__) {
-          console.warn('[photos] Failed to backfill remote photo storage.', error);
-        }
-      }
-    }
-  }
-
-  if (!localFileExists(encryptedUri) && !isWrAuthStorageRef(row.local_id)) {
+  if (!isWrAuthStorageRef(row.local_id)) {
     return null;
   }
 
-  if (isEncryptedUri(encryptedUri)) {
-    return await ensurePreviewUri(encryptedUri);
-  }
-  return toPublicUrl(encryptedUri);
-};
-
-const isPhotoRowAvailable = (row: PhotoRow): boolean => {
-  if (isWrAuthStorageRef(row.local_id)) {
-    return true;
-  }
-  if (row.local_id.startsWith('http://') || row.local_id.startsWith('https://')) {
-    return true;
-  }
-  return localFileExists(row.local_id);
+  const key = await photoVaultService.getOrCreateKey();
+  const encryptedBytes = await wrAuthStorageService.downloadBytes(row.local_id);
+  const decrypted = await decryptPhotoBytes(encryptedBytes, key);
+  const dataUri = toDataUri(decrypted);
+  photoSessionCache.set(row.id, dataUri);
+  return dataUri;
 };
 
 const normalizeCategoryIds = (value: string | string[]) => {
@@ -270,27 +84,25 @@ const listPhotoRows = async (categoryId?: string): Promise<PhotoRow[]> => {
   const filteredRows = categoryId
     ? rows.filter(row => parseCategoryIds(row.categories).includes(categoryId))
     : rows;
-  const mapped = filteredRows.map(row => ({
-    id: row.id,
-    local_id: row.local_id,
-    width: row.width,
-    height: row.height,
-    captured_at: row.captured_at,
-    categories: row.categories,
-  }));
-  await syncLocalRowsToRemoteStorage(mapped);
 
   const available: PhotoRow[] = [];
-  for (const row of mapped) {
-    if (isPhotoRowAvailable(row)) {
-      available.push(row);
+  for (const row of filteredRows) {
+    const mapped: PhotoRow = {
+      id: row.id,
+      local_id: row.local_id,
+      width: row.width,
+      height: row.height,
+      captured_at: row.captured_at,
+      categories: row.categories,
+    };
+
+    if (isCloudPhotoRef(mapped.local_id)) {
+      available.push(mapped);
       continue;
     }
+
     try {
-      await wrAuthDataService.deletePhotoMetadata(row.id);
-      if (isWrAuthStorageRef(row.local_id)) {
-        await wrAuthStorageService.deleteRef(row.local_id);
-      }
+      await wrAuthDataService.deletePhotoMetadata(mapped.id);
     } catch (error) {
       if (__DEV__) {
         console.warn('[photos] Failed to prune orphaned metadata row.', error);
@@ -304,11 +116,17 @@ const listPhotos = async (categoryId?: string): Promise<ProgressImage[]> => {
   const rows = await listPhotoRows(categoryId);
   const mapped: ProgressImage[] = [];
   for (const row of rows) {
-    const resolvedUri = await resolvePhotoUri(row);
-    if (!resolvedUri) {
-      continue;
+    try {
+      const resolvedUri = await resolveDisplayUri(row);
+      if (!resolvedUri) {
+        continue;
+      }
+      mapped.push(mapPhoto(row, resolvedUri));
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[photos] Skipping photo that could not be decrypted.', row.id, error);
+      }
     }
-    mapped.push(mapPhoto(row, resolvedUri));
   }
   return mapped;
 };
@@ -323,17 +141,17 @@ const savePhoto = async (
   const capturedAt = new Date().toISOString();
   const normalizedCategoryIds = normalizeCategoryIds(categories);
   const compressed = await compressImageForStorage(imageUri);
-  const key = await getOrCreateKey();
+  const key = await photoVaultService.getOrCreateKey();
   const sourceBytes = await readUriBytes(compressed.uri);
-  const encryptedFile = getEncryptedFile(compressed.uri);
   const encryptedBytes = await encryptPhotoBytes(sourceBytes, key);
-  encryptedFile.write(encryptedBytes);
-  const storageRef = await uploadEncryptedFileToStorage(encryptedFile.uri);
-  const previewBytes = await createPreviewFromUri(compressed.uri);
-  const previewUri = writePreviewBytes(encryptedFile.uri, previewBytes);
+  const storageRef = await wrAuthStorageService.uploadBytes(
+    'progress_photo',
+    encryptedBytes,
+    'application/octet-stream'
+  );
 
   for (const uri of [imageUri, compressed.uri]) {
-    if (uri.startsWith('file://') && !isEncryptedUri(uri) && uri !== previewUri) {
+    if (uri.startsWith('file://')) {
       try {
         new File(uri).delete();
       } catch {}
@@ -342,14 +160,16 @@ const savePhoto = async (
 
   const photoWidth = compressed.width || width;
   const photoHeight = compressed.height || height;
-  const categoriesJson = serializeCategoryIds(normalizedCategoryIds);
   const remoteRow = await wrAuthDataService.createPhotoMetadata({
     local_id: storageRef,
     width: photoWidth,
     height: photoHeight,
     captured_at: capturedAt,
-    categories: categoriesJson,
+    categories: serializeCategoryIds(normalizedCategoryIds),
   });
+
+  const dataUri = toDataUri(sourceBytes);
+  photoSessionCache.set(remoteRow.id, dataUri);
 
   const row: PhotoRow = {
     id: remoteRow.id,
@@ -360,7 +180,7 @@ const savePhoto = async (
     categories: normalizedCategoryIds,
   };
 
-  return mapPhoto(row, previewUri);
+  return mapPhoto(row, dataUri);
 };
 
 const findPhotoRow = (rows: PhotoRow[], id: string | number) => {
@@ -384,19 +204,7 @@ const deletePhoto = async (id: string | number): Promise<void> => {
     await wrAuthStorageService.deleteRef(data.local_id);
   }
 
-  if (data.local_id && data.local_id.startsWith('file://')) {
-    try {
-      new File(data.local_id).delete();
-    } catch {}
-  }
-  if (data.local_id && isEncryptedUri(data.local_id)) {
-    const previewFile = getPreviewFileForEncrypted(data.local_id);
-    if (previewFile.exists) {
-      try {
-        previewFile.delete();
-      } catch {}
-    }
-  }
+  photoSessionCache.remove(photoId);
 };
 
 const updatePhotoCategories = async (id: string | number, categories: string[]): Promise<void> => {
@@ -450,4 +258,6 @@ export const photosService = {
   removeCategoryFromPhotos,
   listAvailablePhotoTimestamps,
   listPhotoCategoryStats,
+  warmVaultKey: () => photoVaultService.warmVaultKey(),
+  clearSessionCache: () => photoSessionCache.clear(),
 };

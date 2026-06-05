@@ -12,6 +12,8 @@ import { avatarUploadService } from '@/services/avatar-upload.service';
 import { authSessionService } from '@/services/auth-session.service';
 import { biometricAuthService } from '@/services/biometric-auth.service';
 import { dataMigrationService } from '@/services/data-migration.service';
+import { photoVaultService } from '@/services/photo-vault.service';
+import { photosService } from '@/services/photos.service';
 import { pendingProfileService } from '@/services/pending-profile.service';
 import {
   clearSessionIfInvalid,
@@ -107,6 +109,11 @@ const persistSession = async (
   void dataMigrationService.migrateLocalDataToWrAuthIfNeeded().catch(error => {
     if (__DEV__) {
       console.warn('[wrAuth] Local data migration failed:', error);
+    }
+  });
+  void photosService.warmVaultKey().catch(error => {
+    if (__DEV__) {
+      console.warn('[photos] Vault key warm-up failed:', error);
     }
   });
   return session;
@@ -276,6 +283,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Clear local session even if revoke fails (offline / expired token).
       }
     }
+    photosService.clearSessionCache();
+    photoVaultService.clear();
     await authSessionService.setSession(null);
     setSession(null);
   }, []);

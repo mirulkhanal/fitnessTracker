@@ -1,9 +1,17 @@
-import { bytesToBase64, base64ToBytes } from '@/utils/bytes-base64';
 import { toWrAuthStorageRef } from '@/constants/wrauth-storage';
 import { executeWithAccessTokenRetry } from '@/services/wrauth-session-refresh.service';
 import { wrAuthClient, WrAuthRequestError } from '@/services/wrauth.client';
+import { bytesToBase64, base64ToBytes } from '@/utils/bytes-base64';
 
 export type WrAuthStoragePurpose = 'avatar' | 'progress_photo' | 'photo_vault_key';
+
+type WrAuthStorageObjectSummary = {
+  id: string;
+  purpose: string;
+  content_type: string;
+  byte_size: number;
+  created_at: string;
+};
 
 const withAccessToken = <T>(operation: (accessToken: string) => Promise<T>): Promise<T> =>
   executeWithAccessTokenRetry(operation);
@@ -42,6 +50,28 @@ export const wrAuthStorageService = {
     } catch (error) {
       if (error instanceof WrAuthRequestError && error.code === 'STORAGE_NOT_FOUND') {
         return;
+      }
+      throw error;
+    }
+  },
+
+  async listObjects(purpose?: WrAuthStoragePurpose): Promise<WrAuthStorageObjectSummary[]> {
+    return withAccessToken(accessToken => wrAuthClient.listStorageObjects(accessToken, purpose));
+  },
+
+  async findLatestRefByPurpose(purpose: WrAuthStoragePurpose): Promise<string | null> {
+    try {
+      const objects = await this.listObjects(purpose);
+      if (objects.length === 0) {
+        return null;
+      }
+      const latest = objects.reduce((current, candidate) =>
+        candidate.created_at > current.created_at ? candidate : current
+      );
+      return toWrAuthStorageRef(latest.id);
+    } catch (error) {
+      if (error instanceof WrAuthRequestError && error.status === 404) {
+        return null;
       }
       throw error;
     }
