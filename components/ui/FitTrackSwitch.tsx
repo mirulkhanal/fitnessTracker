@@ -1,4 +1,4 @@
-import { FitTrackColors } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
@@ -10,6 +10,7 @@ interface FitTrackSwitchProps {
 }
 
 export function FitTrackSwitch({ value, onValueChange, disabled = false }: FitTrackSwitchProps) {
+  const { fitTrackColors } = useTheme();
   const thumbStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: withTiming(value ? 22 : 2, { duration: 200 }) }],
   }));
@@ -20,9 +21,13 @@ export function FitTrackSwitch({ value, onValueChange, disabled = false }: FitTr
       disabled={disabled}
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
-      style={[styles.track, value && styles.trackOn, disabled && styles.trackDisabled]}
+      style={[
+        styles.track,
+        { backgroundColor: value ? fitTrackColors.primaryContainer : fitTrackColors.surfaceContainerHighest },
+        disabled && styles.trackDisabled,
+      ]}
     >
-      <Animated.View style={[styles.thumb, thumbStyle]} />
+      <Animated.View style={[styles.thumb, { borderColor: fitTrackColors.surface }, thumbStyle]} />
     </Pressable>
   );
 }
@@ -32,11 +37,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 24,
     borderRadius: 12,
-    backgroundColor: FitTrackColors.surfaceContainerHighest,
     justifyContent: 'center',
-  },
-  trackOn: {
-    backgroundColor: FitTrackColors.primaryContainer,
   },
   trackDisabled: {
     opacity: 0.5,
@@ -47,6 +48,5 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#ffffff',
     borderWidth: 2,
-    borderColor: FitTrackColors.surface,
   },
 });

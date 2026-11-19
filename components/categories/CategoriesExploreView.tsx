@@ -3,6 +3,7 @@ import { CategoryExploreCard } from '@/components/categories/CategoryExploreCard
 import { CategorySearchBar } from '@/components/categories/CategorySearchBar';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { CategoryStats } from '@/types/category.types';
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -23,6 +24,7 @@ export function CategoriesExploreView({
   onAddCategory,
 }: CategoriesExploreViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { fitTrackColors } = useTheme();
 
   const filteredCategories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -44,8 +46,8 @@ export function CategoriesExploreView({
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
-        <Text style={styles.title}>Fitness Categories</Text>
-        <Text style={styles.subtitle}>
+        <Text style={[styles.title, { color: fitTrackColors.onBackground }]}>Fitness Categories</Text>
+        <Text style={[styles.subtitle, { color: fitTrackColors.onSurfaceVariant }]}>
           Select a muscle group or workout type to view your progress photos and tracking data.
         </Text>
       </View>
@@ -54,10 +56,10 @@ export function CategoriesExploreView({
 
       {filteredCategories.length === 0 && !loading ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>
+          <Text style={[styles.emptyTitle, { color: fitTrackColors.onBackground }]}>
             {searchQuery.trim() ? 'No matching categories' : 'No categories yet'}
           </Text>
-          <Text style={styles.emptySubtitle}>
+          <Text style={[styles.emptySubtitle, { color: fitTrackColors.onSurfaceVariant }]}>
             {searchQuery.trim()
               ? 'Try a different search term.'
               : 'Create a custom category to organize your progress photos.'}

@@ -1,6 +1,7 @@
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useState } from 'react';
@@ -32,15 +33,16 @@ export function HomeLatestProgress({
   onExplorePhotos,
 }: HomeLatestProgressProps) {
   const [segment, setSegment] = useState<'latest' | 'photos'>('latest');
+  const { fitTrackColors, isDarkMode } = useTheme();
 
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Latest Progress</Text>
+        <Text style={[styles.sectionTitle, { color: fitTrackColors.onBackground }]}>Latest Progress</Text>
         {onViewAll ? (
           <TouchableOpacity onPress={onViewAll} activeOpacity={0.7} style={styles.viewAll}>
-            <Text style={styles.viewAllText}>VIEW ALL</Text>
-            <IconSymbol name="chevron.right" size={14} color={FitTrackColors.primaryContainer} />
+            <Text style={[styles.viewAllText, { color: fitTrackColors.primaryContainer }]}>VIEW ALL</Text>
+            <IconSymbol name="chevron.right" size={14} color={fitTrackColors.primaryContainer} />
           </TouchableOpacity>
         ) : null}
       </View>
@@ -48,9 +50,9 @@ export function HomeLatestProgress({
       {!photo ? (
         <GlassPanel active style={styles.emptyCard}>
           <View style={styles.emptyInner}>
-            <IconSymbol name="photo" size={48} color={FitTrackColors.onSurfaceVariant} />
-            <Text style={styles.emptyTitle}>No Photos Yet</Text>
-            <Text style={styles.emptySubtitle}>
+            <IconSymbol name="photo" size={48} color={fitTrackColors.onSurfaceVariant} />
+            <Text style={[styles.emptyTitle, { color: fitTrackColors.onBackground }]}>No Photos Yet</Text>
+            <Text style={[styles.emptySubtitle, { color: fitTrackColors.onSurfaceVariant }]}>
               Capture your first progress photo with the + button.
             </Text>
           </View>
@@ -59,7 +61,7 @@ export function HomeLatestProgress({
         <GlassPanel active style={styles.photoCard}>
           <View style={styles.segmentRow}>
             <TouchableOpacity
-              style={[styles.segment, segment === 'photos' && styles.segmentActive]}
+              style={[styles.segment, { backgroundColor: segment === 'photos' ? fitTrackColors.surfaceContainerHighest : fitTrackColors.surfaceContainer }, segment === 'photos' && styles.segmentActive]}
               onPress={() => {
                 setSegment('photos');
                 onExplorePhotos?.();
@@ -67,18 +69,18 @@ export function HomeLatestProgress({
               activeOpacity={0.8}
             >
               <Text
-                style={[styles.segmentText, segment === 'photos' && styles.segmentTextActive]}
+                style={[styles.segmentText, { color: segment === 'photos' ? fitTrackColors.onSurface : fitTrackColors.onSurfaceVariant }]}
               >
                 Photos
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.segment, segment === 'latest' && styles.segmentActive]}
+              style={[styles.segment, { backgroundColor: segment === 'latest' ? fitTrackColors.surfaceContainerHighest : fitTrackColors.surfaceContainer }, segment === 'latest' && styles.segmentActive]}
               onPress={() => setSegment('latest')}
               activeOpacity={0.8}
             >
               <Text
-                style={[styles.segmentText, segment === 'latest' && styles.segmentTextActive]}
+                style={[styles.segmentText, { color: segment === 'latest' ? fitTrackColors.onSurface : fitTrackColors.onSurfaceVariant }]}
               >
                 Latest
               </Text>
@@ -94,7 +96,7 @@ export function HomeLatestProgress({
               transition={0}
             />
             <LinearGradient
-              colors={['transparent', 'rgba(5, 20, 36, 0.2)', 'rgba(5, 20, 36, 0.95)']}
+              colors={isDarkMode ? ['transparent', 'rgba(5, 20, 36, 0.2)', 'rgba(5, 20, 36, 0.95)'] : ['transparent', 'rgba(10, 20, 12, 0.1)', 'rgba(10, 20, 12, 0.78)']}
               style={styles.gradient}
             />
 
@@ -102,7 +104,7 @@ export function HomeLatestProgress({
               <Text style={styles.imageDate}>{photo.dateLabel}</Text>
               {onDeletePhoto ? (
                 <TouchableOpacity
-                  style={styles.deleteButton}
+                  style={[styles.deleteButton, { backgroundColor: fitTrackColors.deleteButton }]}
                   onPress={() => onDeletePhoto(photo.id)}
                   activeOpacity={0.8}
                   accessibilityLabel="Delete photo"
@@ -114,13 +116,13 @@ export function HomeLatestProgress({
 
             <View style={styles.badges}>
               <View style={styles.badgePrimary}>
-                <IconSymbol name="calendar" size={14} color={FitTrackColors.primaryContainer} />
-                <Text style={styles.badgePrimaryText}>{photo.dateLabel}</Text>
+                <IconSymbol name="calendar" size={14} color={fitTrackColors.primaryContainer} />
+                <Text style={[styles.badgePrimaryText, { color: fitTrackColors.primaryContainer }]}>{photo.dateLabel}</Text>
               </View>
               {photo.categoryLabel ? (
-                <View style={styles.badgeSecondary}>
-                  <IconSymbol name="figure.walk" size={14} color={FitTrackColors.onSurface} />
-                  <Text style={styles.badgeSecondaryText}>{photo.categoryLabel}</Text>
+                <View style={[styles.badgeSecondary, { backgroundColor: fitTrackColors.surfaceContainerHighest, borderColor: fitTrackColors.outlineVariant }]}>
+                  <IconSymbol name="figure.walk" size={14} color={fitTrackColors.onSurface} />
+                  <Text style={[styles.badgeSecondaryText, { color: fitTrackColors.onSurface }]}>{photo.categoryLabel}</Text>
                 </View>
               ) : null}
             </View>

@@ -1,6 +1,7 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
-import { useAuthenticatedImageSource } from '@/hooks/use-authenticated-image-source';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useLocalImageSource } from '@/hooks/use-local-image-source';
 import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -30,7 +31,8 @@ export function HomeTopBar({
   onBackPress,
 }: HomeTopBarProps) {
   const insets = useSafeAreaInsets();
-  const avatarSource = useAuthenticatedImageSource(avatarUrl);
+  const { fitTrackColors } = useTheme();
+  const avatarSource = useLocalImageSource(avatarUrl);
   const hasAvatar = Boolean(avatarSource?.uri);
 
   return (
@@ -39,12 +41,16 @@ export function HomeTopBar({
         styles.bar,
         {
           paddingTop: insets.top + 8,
-          backgroundColor: FitTrackColors.barBackground,
+          backgroundColor: fitTrackColors.barBackground,
+          borderBottomColor: fitTrackColors.glassBorder,
         },
       ]}
     >
       <TouchableOpacity
-        style={styles.profileButton}
+        style={[styles.profileButton, {
+          backgroundColor: fitTrackColors.secondaryContainer,
+          borderColor: fitTrackColors.outlineVariant,
+        }]}
         onPress={onBackPress ?? onProfilePress}
         activeOpacity={0.8}
         accessibilityLabel={onBackPress ? 'Go back' : 'Profile'}
@@ -52,13 +58,13 @@ export function HomeTopBar({
         {hasAvatar ? (
           <Image source={avatarSource!} style={styles.avatarImage} contentFit="cover" />
         ) : onBackPress ? (
-          <IconSymbol name="chevron.left" size={22} color={FitTrackColors.onSurfaceVariant} />
+          <IconSymbol name="chevron.left" size={22} color={fitTrackColors.onSurfaceVariant} />
         ) : (
-          <Text style={styles.avatarFallback}>{getInitial(displayName)}</Text>
+          <Text style={[styles.avatarFallback, { color: fitTrackColors.onSecondaryContainer }]}>{getInitial(displayName)}</Text>
         )}
       </TouchableOpacity>
 
-      <Text style={styles.brand}>FITTRACK</Text>
+      <Text style={[styles.brand, { color: fitTrackColors.primaryContainer }]}>FITTRACK</Text>
 
       <TouchableOpacity
         style={styles.iconButton}
@@ -66,7 +72,7 @@ export function HomeTopBar({
         activeOpacity={0.8}
         accessibilityLabel="Notifications"
       >
-        <IconSymbol name="bell.fill" size={22} color={FitTrackColors.onSurfaceVariant} />
+        <IconSymbol name="bell.fill" size={22} color={fitTrackColors.onSurfaceVariant} />
       </TouchableOpacity>
     </View>
   );

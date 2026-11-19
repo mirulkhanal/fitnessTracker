@@ -2,9 +2,9 @@ import { CategoriesExploreView } from '@/components/categories/CategoriesExplore
 import { CategoryFormModal } from '@/components/categories/CategoryFormModal';
 import { HomeTopBar } from '@/components/home/HomeTopBar';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
-import { FitTrackColors } from '@/constants/fittrack-theme';
 import { useAlert } from '@/contexts/AlertContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useLocalProfile } from '@/contexts/LocalProfileContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useCategoriesScreen } from '@/hooks/use-categories-screen';
 import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 import { CategoryStats } from '@/types/category.types';
@@ -16,8 +16,9 @@ const HEADER_OFFSET = 108;
 
 export default function CategoriesScreen() {
   const { showAlert } = useAlert();
-  const { session } = useAuth();
-  const displayName = session?.display_name?.trim() || 'Athlete';
+  const { profile } = useLocalProfile();
+  const { fitTrackColors } = useTheme();
+  const displayName = profile.display_name.trim() || 'Athlete';
 
   const {
     categoryStats,
@@ -77,9 +78,9 @@ export default function CategoriesScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: fitTrackColors.background }]}>
       <HomeTopBar
-        avatarUrl={session?.avatar_url}
+        avatarUrl={profile.avatar_url}
         displayName={displayName}
         onProfilePress={() => router.push('/(tabs)/settings')}
         onNotificationsPress={openWorkoutReminders}
@@ -116,7 +117,6 @@ export default function CategoriesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: FitTrackColors.background,
   },
   body: {
     flex: 1,

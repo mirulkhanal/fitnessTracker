@@ -1,9 +1,7 @@
 import { FitnessIconPicker } from '@/components/icons/FitnessIconPicker';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { ThemedText } from '@/components/ui/themed-text';
-import { CategoryColorPalette } from '@/constants/theme';
-import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
+import { CategoryColorPalette, FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { CreateCategoryRequest } from '@/types/category.types';
 import React, { useState } from 'react';
@@ -157,9 +155,9 @@ export function CategoryForm({
 
   return (
     <View style={styles.container}>
-      <ThemedText type="subtitle" style={styles.title}>
+      <Text style={[styles.title, { color: colors.text }]}>
         {title}
-      </ThemedText>
+      </Text>
 
       <Input
         label="Category Name"
@@ -181,7 +179,7 @@ export function CategoryForm({
       />
 
       <View style={styles.colorSection}>
-        <ThemedText style={styles.colorLabel}>Choose Color</ThemedText>
+        <Text style={[styles.colorLabel, { color: colors.text }]}>Choose Color</Text>
         <View style={styles.colorGrid}>
           {CategoryColorPalette.map((paletteColor) => {
             const isSelected = paletteColor === color;

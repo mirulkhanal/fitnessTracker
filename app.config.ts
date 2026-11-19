@@ -5,26 +5,12 @@ import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 const extraProguardRules = readFileSync(join(__dirname, 'proguard-rules.pro'), 'utf8');
 
-const wrauthApiUrl = process.env.EXPO_PUBLIC_WRAUTH_API_URL?.trim() ?? '';
-const wrauthAppKey = process.env.EXPO_PUBLIC_WRAUTH_APP_KEY?.trim() ?? '';
-
-/** `__DEV__` is not available when Node evaluates app.config — use build env instead. */
-const isEasProductionBuild = process.env.EAS_BUILD_PROFILE === 'production';
-const allowCleartext =
-  !isEasProductionBuild &&
-  (process.env.EXPO_PUBLIC_ALLOW_CLEARTEXT === 'true' || wrauthApiUrl.startsWith('http://'));
-
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'FitTrack Progress',
   slug: 'FitnessTracker',
-  userInterfaceStyle: 'dark',
+  userInterfaceStyle: 'automatic',
   icon: './assets/images/icon.png',
-  updates: {
-    url: 'https://u.expo.dev/02087f60-dc6c-4250-8815-980529edc4c9',
-    checkAutomatically: 'ON_LOAD',
-    fallbackToCacheTimeout: 0,
-  },
   ios: {
     ...config.ios,
     bundleIdentifier: 'com.fittrack.progress',
@@ -44,17 +30,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    ...(allowCleartext ? { usesCleartextTraffic: true } : {}),
     allowBackup: false,
   } as ExpoConfig['android'],
   plugins: [
     ...(config.plugins ?? []),
-    'expo-updates',
+    './plugins/with-local-data-no-backup',
     [
       'expo-build-properties',
       {
         android: {
-          usesCleartextTraffic: allowCleartext,
+          usesCleartextTraffic: false,
           enableMinifyInReleaseBuilds: true,
           enableShrinkResourcesInReleaseBuilds: true,
           extraProguardRules,
@@ -103,13 +88,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     ...config.extra,
     router: {},
-    wrauthApiUrl,
-    wrauthAppKey,
-    eas: {
-      projectId: '02087f60-dc6c-4250-8815-980529edc4c9',
-      ...(typeof config.extra === 'object' && config.extra && 'eas' in config.extra
-        ? (config.extra as { eas?: object }).eas
-        : {}),
-    },
   },
 });

@@ -1,7 +1,8 @@
 import { Colors } from '@/constants/theme';
+import { FitTrackPalettes, type FitTrackPalette } from '@/constants/fittrack-theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { useColorScheme as useRNColorScheme } from 'react-native';
+import { Appearance, useColorScheme as useRNColorScheme } from 'react-native';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 type ColorScheme = 'light' | 'dark';
@@ -10,6 +11,7 @@ interface ThemeContextType {
   themeMode: ThemeMode;
   colorScheme: ColorScheme;
   colors: typeof Colors.light;
+  fitTrackColors: FitTrackPalette;
   isDarkMode: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
@@ -30,6 +32,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     : themeMode;
 
   const colors = Colors[colorScheme];
+  const fitTrackColors = FitTrackPalettes[colorScheme];
   const isDarkMode = colorScheme === 'dark';
 
   // Load saved theme preference
@@ -39,6 +42,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
         if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
           setThemeModeState(savedTheme as ThemeMode);
+          Appearance.setColorScheme(savedTheme === 'system' ? null : savedTheme as ColorScheme);
         }
       } catch (error) {
         console.error('Error loading theme preference:', error);
@@ -52,6 +56,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Save theme preference
   const setThemeMode = useCallback(async (mode: ThemeMode) => {
+    Appearance.setColorScheme(mode === 'system' ? null : mode);
     try {
       await AsyncStorage.setItem(THEME_STORAGE_KEY, mode);
       setThemeModeState(mode);
@@ -63,6 +68,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Toggle between light and dark (ignoring system)
   const toggleTheme = useCallback(() => {
     const newMode = colorScheme === 'light' ? 'dark' : 'light';
+    Appearance.setColorScheme(newMode);
     // Update state immediately for smooth UI
     setThemeModeState(newMode);
     // Save to storage in background
@@ -75,10 +81,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     themeMode,
     colorScheme,
     colors,
+    fitTrackColors,
     isDarkMode,
     setThemeMode,
     toggleTheme,
-  }), [themeMode, colorScheme, colors, isDarkMode, setThemeMode, toggleTheme]);
+  }), [themeMode, colorScheme, colors, fitTrackColors, isDarkMode, setThemeMode, toggleTheme]);
 
   // Don't render until theme is loaded to prevent flash
   if (!isLoaded) {

@@ -1,6 +1,7 @@
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
@@ -15,16 +16,17 @@ export function CategorySearchBar({
   onChangeText,
   placeholder = 'Search categories...',
 }: CategorySearchBarProps) {
+  const { fitTrackColors } = useTheme();
   return (
     <GlassPanel style={styles.wrap}>
       <View style={styles.inner}>
-        <IconSymbol name="magnifyingglass" size={22} color={FitTrackColors.onSurfaceVariant} />
+        <IconSymbol name="magnifyingglass" size={22} color={fitTrackColors.onSurfaceVariant} />
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="rgba(195, 201, 178, 0.5)"
-          style={styles.input}
+          placeholderTextColor={`${fitTrackColors.onSurfaceVariant}80`}
+          style={[styles.input, { color: fitTrackColors.onBackground }]}
           autoCapitalize="none"
           autoCorrect={false}
           clearButtonMode="while-editing"

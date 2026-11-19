@@ -5,7 +5,6 @@ import {
   PhotoPreviewCard,
   SaveButtonBar,
 } from '@/components/category-selection/CategorySelectionSections';
-import { ThemedView } from '@/components/ui/themed-view';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCategorySelection } from '@/hooks/use-category-selection';
 import { useLocalSearchParams } from 'expo-router';
@@ -63,7 +62,7 @@ export default function CategorySelectionScreen() {
   }, [newCategoryOffset]);
 
   return (
-    <ThemedView style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView ref={scrollRef} style={styles.content} showsVerticalScrollIndicator={false}>
         <PhotoPreviewCard imageUri={imageUri as string} />
         <View style={styles.categorySection}>
@@ -93,7 +92,7 @@ export default function CategorySelectionScreen() {
         <HelpText visible={selectedCategories.length === 0} />
         <SaveButtonBar selectedCount={selectedCategories.length} onSave={handleSavePhoto} />
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 

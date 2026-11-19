@@ -1,4 +1,4 @@
-/** In-memory decrypted image URIs for the current app session (cleared on sign-out). */
+/** In-memory decrypted image URIs for the current app session. */
 const cache = new Map<string, string>();
 
 export const photoSessionCache = {

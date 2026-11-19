@@ -1,5 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -8,13 +9,14 @@ interface AddCategoryCardProps {
 }
 
 export function AddCategoryCard({ onPress }: AddCategoryCardProps) {
+  const { fitTrackColors } = useTheme();
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.touchable}>
-      <View style={styles.card}>
-        <View style={styles.iconCircle}>
-          <IconSymbol name="plus" size={28} color={FitTrackColors.onSurfaceVariant} />
+      <View style={[styles.card, { borderColor: fitTrackColors.secondaryContainer }]}>
+        <View style={[styles.iconCircle, { backgroundColor: fitTrackColors.surfaceContainerHigh }]}>
+          <IconSymbol name="plus" size={28} color={fitTrackColors.onSurfaceVariant} />
         </View>
-        <Text style={styles.label}>Add Custom Category</Text>
+        <Text style={[styles.label, { color: fitTrackColors.onSurfaceVariant }]}>Add Custom Category</Text>
       </View>
     </TouchableOpacity>
   );

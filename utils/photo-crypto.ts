@@ -31,6 +31,11 @@ const isV2Payload = (payload: Uint8Array) =>
   payload[1] === V2_MAGIC[1] &&
   payload[2] === V2_MAGIC[2];
 
+export const isPlainPhotoBytes = (payload: Uint8Array): boolean =>
+  (payload.length >= 3 && payload[0] === 0xff && payload[1] === 0xd8 && payload[2] === 0xff) ||
+  (payload.length >= 8 && payload[0] === 0x89 && payload[1] === 0x50 &&
+    payload[2] === 0x4e && payload[3] === 0x47);
+
 const deriveLegacyKeystream = async (key: Uint8Array, nonce: Uint8Array, length: number) => {
   const blockSize = 4096;
   const blocks = Math.ceil(length / blockSize);
@@ -63,7 +68,7 @@ const encryptLegacy = async (data: Uint8Array, key: Uint8Array) => {
   return concatBytes(nonce, xorBytes(data, keystream));
 };
 
-const decryptLegacy = async (payload: Uint8Array, key: Uint8Array) => {
+const decryptLegacy = async (payload: Uint8Array, key: Uint8Array): Promise<Uint8Array> => {
   const nonce = payload.slice(0, LEGACY_NONCE_LENGTH);
   const encrypted = payload.slice(LEGACY_NONCE_LENGTH);
   const keystream = await deriveLegacyKeystream(key, nonce, encrypted.length);
@@ -77,12 +82,12 @@ const encryptV2 = async (data: Uint8Array, key: Uint8Array) => {
   return concatBytes(V2_MAGIC, nonce, ciphertext);
 };
 
-const decryptV2 = (payload: Uint8Array, key: Uint8Array) => {
+const decryptV2 = (payload: Uint8Array, key: Uint8Array): Uint8Array => {
   const body = payload.slice(V2_MAGIC.length);
   const nonce = body.slice(0, NONCE_LENGTH);
   const ciphertext = body.slice(NONCE_LENGTH);
   const aes = gcm(key, nonce);
-  return aes.decrypt(ciphertext);
+  return new Uint8Array(aes.decrypt(ciphertext));
 };
 
 export const encryptPhotoBytes = async (data: Uint8Array, key: Uint8Array): Promise<Uint8Array> =>
@@ -90,7 +95,7 @@ export const encryptPhotoBytes = async (data: Uint8Array, key: Uint8Array): Prom
 
 export const decryptPhotoBytes = async (payload: Uint8Array, key: Uint8Array): Promise<Uint8Array> => {
   if (isV2Payload(payload)) {
-    return decryptV2(payload, key);
+    return new Uint8Array(await decryptV2(payload, key));
   }
-  return decryptLegacy(payload, key);
+  return new Uint8Array(await decryptLegacy(payload, key));
 };

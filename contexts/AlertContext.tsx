@@ -1,9 +1,8 @@
 import { Button } from '@/components/ui/Button';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/contexts/ThemeContext';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type AlertVariant = 'info' | 'success' | 'warning' | 'error';
 type AlertButtonStyle = 'default' | 'cancel' | 'destructive';
@@ -94,9 +93,9 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             <View style={[styles.iconContainer, { backgroundColor: variantColor + '1F' }]}>
               <IconSymbol name={iconName} size={32} color={variantColor} />
             </View>
-            <ThemedText style={styles.title}>{alert?.title ?? ''}</ThemedText>
+            <Text style={[styles.title, { color: colors.text }]}>{alert?.title ?? ''}</Text>
             {alert?.message ? (
-              <ThemedText style={[styles.message, { color: colors.icon }]}>{alert.message}</ThemedText>
+              <Text style={[styles.message, { color: colors.icon }]}>{alert.message}</Text>
             ) : null}
             <View style={styles.buttonRow}>
               {buttons.map((button, index) => {

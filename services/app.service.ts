@@ -1,4 +1,5 @@
 import { databaseService } from '@/services/database.service';
+import { localDataMigrationService } from '@/services/local-data-migration.service';
 import { workoutNotificationService } from '@/services/workout-notification.service';
 
 class AppService {
@@ -22,6 +23,7 @@ class AppService {
         console.log('[app] initializing…');
       }
       await databaseService.init();
+      await localDataMigrationService.removeLegacyAccountState();
       await workoutNotificationService.initialize();
       await workoutNotificationService.syncFromStorage();
       this.isInitialized = true;

@@ -4,32 +4,17 @@
     "slug": "FitnessTracker",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "fitnesstracker",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": false,
-          "data": [{ "scheme": "fitnesstracker" }],
-          "category": ["BROWSABLE", "DEFAULT"]
-        }
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/02087f60-dc6c-4250-8815-980529edc4c9"
     },
     "plugins": [
       "expo-router",
@@ -39,11 +24,6 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "02087f60-dc6c-4250-8815-980529edc4c9"
-      }
     }
   }
 }

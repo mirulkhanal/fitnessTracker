@@ -1,105 +1,26 @@
 # FitTrack Progress
 
-React Native / Expo app using **wrAuth** for authentication, profiles, and synced metadata.
+FitTrack Progress is a React Native / Expo fitness tracker. It has no FitTrack account or cloud data backend. Profile details, categories, progress photos, reminder schedules, and preferences stay in the app's local storage on the installed device.
 
-## Android releases
+## Get started
 
-To ship an installable APK via GitHub Releases, see **[RELEASE.md](./RELEASE.md)** (EAS build, secrets, tagging, and user install steps).
+1. Install Node.js and pnpm.
+2. Install project dependencies with `pnpm install`.
+3. Start the app with `pnpm start`, then open it in a development build (`pnpm android`).
+4. On first launch, enter a name and optionally choose a profile photo. This creates a local profile only; no email or password is requested.
 
-## Local setup
+Consumer installs come from GitHub Releases APKs (see [RELEASE.md](./RELEASE.md)). There is no EAS, Supabase, wrAuth, `.env`, account registration, or sign-in requirement.
 
-1. Install dependencies
+## Local data
 
-```bash
-pnpm install
-```
+- SQLite stores categories and photo details.
+- Progress photos are compressed, encrypted on the device, and saved in the app's private document storage. The encryption key is stored in device secure storage.
+- The profile, theme, reminder schedule, and small preferences use local app storage. Workout reminders are scheduled as device notifications.
+- Settings can build a ZIP export from local data. The device share sheet only sends or saves that ZIP where you choose.
+- Android cloud and device-to-device backup rules exclude app data. The iOS build excludes the app's Documents and Library folders from system backup.
 
-2. Configure wrAuth environment
+Existing cloud-only records and photos are not downloaded by this local build. Existing SQLite rows are retained and their account identifiers are removed, but photos whose files only exist in the previous wrAuth/Supabase storage must be exported from the older app before switching; this build has no credentials or network path to fetch them.
 
-Copy `.env.example` to `.env` and set:
+A locally shared ZIP export is the only FitTrack data transfer initiated by the app.
 
-- `EXPO_PUBLIC_WRAUTH_API_URL` (e.g. `http://localhost:4000`)
-- `EXPO_PUBLIC_WRAUTH_APP_KEY` (app key from wrAuth)
-
-3. Start app
-
-```bash
-pnpm start
-```
-
-## wrAuth-side bootstrap for this app
-
-If you have not created a tenant app in wrAuth yet:
-
-```bash
-curl -X POST http://localhost:4000/apps \
-  -H "Content-Type: application/json" \
-  -d '{"name":"FitnessTracker"}'
-```
-
-Save the returned `api_key` as `EXPO_PUBLIC_WRAUTH_APP_KEY`.
-
-**Important:** If email verification is enabled, display name and photo are saved on **first sign-in** (after you verify email), not at signup. Ensure the `profiles` table exists before testing.
-
-Create the `profiles` table (required for profile display name and avatar):
-
-```bash
-curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
-  -H "Content-Type: application/json" \
-  -d '{
-    "table_key": "profiles",
-    "description": "User profile metadata",
-    "columns": [
-      { "name": "owner_user_id", "type": "uuid", "nullable": false, "indexed": true },
-      { "name": "display_name", "type": "text", "nullable": true, "indexed": false },
-      { "name": "avatar_url", "type": "text", "nullable": true, "indexed": false },
-      { "name": "bio", "type": "text", "nullable": true, "indexed": false }
-    ]
-  }'
-```
-
-## wrAuth data tables (categories, photos, streaks)
-
-Categories and photo **metadata** live in wrAuth (`/data/categories`, `/data/photo_metadata`). **Day streak**, **total photos**, and **last photo** are computed from metadata rows that have accessible media (local cache or wrAuth storage) — not stored as separate counters. After you save **Workout reminders**, streaks only count photos on your selected workout days (weekends/off days do not break the streak).
-
-**Workout reminders** use `expo-notifications` for local weekly alarms. Grant notification permission on a physical device; tap the bell icon or open **Settings → Workout reminders** to set time and days.
-
-**Progress video export** is temporarily disabled (the previous native encoder blocked Android store builds). Use the in-app slideshow or **before/after image** export on the Progress tab instead.
-
-**Per-user privacy:** wrAuth automatically adds an `owner_user_id` system column to every data table (new and existing). List/create/update/delete APIs only return rows owned by the signed-in user when that column is present.
-
-**Cross-device sync:** progress photos are compressed, encrypted client-side, and uploaded to wrAuth object storage (`POST /storage/objects`). Metadata `local_id` stores a `wrauth-storage://{objectId}` reference. The encryption key lives in wrAuth under purpose `photo_vault_key` and is loaded into memory on sign-in — no photo files are stored on device. Decrypted images are kept in a session memory cache only (cleared on sign-out). On fetch: download ciphertext → decrypt in RAM → display as a data URI.
-
-Create these tables in wrAuth admin (replace `{APP_ID}`). You do **not** need to declare `owner_user_id` — wrAuth adds it automatically:
-
-```bash
-curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
-  -H "Content-Type: application/json" \
-  -d '{
-    "table_key": "categories",
-    "description": "Fitness progress categories",
-    "columns": [
-      { "name": "name", "type": "text", "nullable": false, "indexed": true },
-      { "name": "color", "type": "text", "nullable": false, "indexed": false },
-      { "name": "icon", "type": "text", "nullable": false, "indexed": false }
-    ]
-  }'
-
-curl -X POST http://localhost:4000/apps/{APP_ID}/data/tables \
-  -H "Content-Type: application/json" \
-  -d '{
-    "table_key": "photo_metadata",
-    "description": "Progress photo metadata (blobs in wrAuth storage)",
-    "columns": [
-      { "name": "local_id", "type": "text", "nullable": false, "indexed": false },
-      { "name": "width", "type": "integer", "nullable": false, "indexed": false },
-      { "name": "height", "type": "integer", "nullable": false, "indexed": false },
-      { "name": "captured_at", "type": "text", "nullable": false, "indexed": true },
-      { "name": "categories", "type": "text", "nullable": false, "indexed": false }
-    ]
-  }'
-```
-
-On first sign-in after upgrading, legacy SQLite categories/photos are uploaded once, then local rows are cleared. Orphan metadata (no file and no storage blob) is removed automatically so dashboard counts match visible photos.
-
-**Deploy wrAuth** with the storage volume (`STORAGE_ROOT`, default `./storage` or `/app/storage` in Docker) and rebuild the API after pulling these changes so `owner_user_id` migration and `/storage` routes are active.
+See [PRIVACY.md](./PRIVACY.md) for storage and backup details, and [RELEASE.md](./RELEASE.md) for building and distributing the app.

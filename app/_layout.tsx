@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
@@ -9,48 +9,42 @@ import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { AlertProvider } from '@/contexts/AlertContext';
 import { AppLockProvider, useAppLock } from '@/contexts/AppLockContext';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { LocalProfileProvider, useLocalProfile } from '@/contexts/LocalProfileContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { useAppFonts } from '@/hooks/use-app-fonts';
 import { appService } from '@/services/app.service';
+import { biometricAuthService } from '@/services/biometric-auth.service';
 import { Stack, useRouter, useSegments } from 'expo-router';
-import * as Linking from 'expo-linking';
+import { Text, TouchableOpacity, View } from 'react-native';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+export const unstable_settings = { anchor: '(tabs)' };
 
 export default function RootLayout() {
+  const [appReady, setAppReady] = useState(appService.getInitializationStatus());
+  const [startupError, setStartupError] = useState('');
   useEffect(() => {
-    if (!__DEV__) {
-      return;
-    }
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      console.log('[linking] received:', url);
+    void appService.initialize().then(() => setAppReady(true)).catch(error => {
+      setStartupError(error instanceof Error ? error.message : 'Unable to open local app storage.');
     });
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        console.log('[linking] initial:', url);
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  useEffect(() => {
-    appService.initialize();
   }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
         <ThemeProvider>
-          <AuthProvider>
-            <AppLockProvider>
-              <AlertProvider>
-                <AppContent />
-              </AlertProvider>
-            </AppLockProvider>
-          </AuthProvider>
+          {startupError ? (
+            <View style={{ flex: 1, backgroundColor: '#051424', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+              <Text style={{ color: '#FFB4AB', textAlign: 'center' }}>{startupError}</Text>
+            </View>
+          ) : !appReady ? (
+            <ScreenLoading text="Preparing local storage..." />
+          ) : (
+            <LocalProfileProvider>
+              <AppLockProvider>
+                <AlertProvider><AppContent /></AlertProvider>
+              </AppLockProvider>
+            </LocalProfileProvider>
+          )}
         </ThemeProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
@@ -60,91 +54,75 @@ export default function RootLayout() {
 function AppContent() {
   const { colorScheme } = useTheme();
   const { loaded: fontsLoaded } = useAppFonts();
-
-  if (!fontsLoaded) {
-    return <ScreenLoading text="Loading..." />;
-  }
+  if (!fontsLoaded) return <ScreenLoading text="Loading..." />;
 
   return (
     <NavigationThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthRouteGuard>
+      <LocalProfileRouteGuard>
         <AppLockGate>
           <WorkoutRemindersHost />
-          <Stack initialRouteName="(tabs)">
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="category-selection"
-            options={{
-              title: 'Category Selection',
-              headerShown: true,
-            }}
-          />
-          <Stack.Screen name="category-view" options={{ headerShown: false }} />
-          <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
+          <Stack initialRouteName="index">
+            <Stack.Screen name="index" options={{ headerShown: false }} />
+            <Stack.Screen name="profile-setup" options={{ headerShown: false }} />
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="category-selection" options={{ title: 'Category Selection', headerShown: true }} />
+            <Stack.Screen name="category-view" options={{ headerShown: false }} />
           </Stack>
         </AppLockGate>
-      </AuthRouteGuard>
-      <StatusBar style="light" />
+      </LocalProfileRouteGuard>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
     </NavigationThemeProvider>
   );
 }
 
-function AuthRouteGuard({ children }: { children: React.ReactNode }) {
+function LocalProfileRouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
-  const segmentKey = segments.join('/');
-  const { isLoading, isAuthenticated } = useAuth();
-  const { isLocked, isReady: lockReady } = useAppLock();
+  const { isLoading, profile } = useLocalProfile();
 
-  React.useEffect(() => {
-    if (isLoading || !lockReady) {
-      return;
-    }
+  useEffect(() => {
+    if (isLoading) return;
     const root = segments[0];
-    const isProtectedStack =
-      root === 'category-selection' || root === 'category-view';
+    if (!profile.setup_complete && root !== 'profile-setup') router.replace('/profile-setup');
+    else if (profile.setup_complete && root === 'profile-setup') router.replace('/(tabs)');
+  }, [isLoading, profile.setup_complete, router, segments]);
 
-    if (!isAuthenticated && isProtectedStack) {
-      router.replace('/sign-in');
-      return;
-    }
-
-    // Do not bounce away from sign-in while biometric lock is active — tabs also redirect there.
-    if (isAuthenticated && !isLocked && root === '(auth)') {
-      router.replace('/');
-    }
-  }, [isAuthenticated, isLoading, isLocked, lockReady, router, segmentKey]);
-
-  if (isLoading) {
-    return <ScreenLoading text="Loading..." />;
-  }
-
+  if (isLoading) return <ScreenLoading text="Loading your profile..." />;
   return <>{children}</>;
 }
 
 function AppLockGate({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  const segments = useSegments();
-  const { isLoading, isAuthenticated } = useAuth();
-  const { isReady, isLocked } = useAppLock();
+  const { isReady, isLocked, releaseLock } = useAppLock();
+  const [error, setError] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
 
-  const segmentKey = segments.join('/');
-
-  React.useEffect(() => {
-    if (!isAuthenticated || !isReady || !isLocked) {
-      return;
+  const unlock = async () => {
+    setUnlocking(true);
+    setError('');
+    try {
+      await biometricAuthService.unlockAppAccess();
+      releaseLock();
+    } catch (unlockError) {
+      setError(unlockError instanceof Error ? unlockError.message : 'Unable to unlock FitTrack.');
+    } finally {
+      setUnlocking(false);
     }
-    const root = segments[0];
-    if (root === '(auth)' || root === '(tabs)') {
-      return;
-    }
-    router.replace('/sign-in');
-  }, [isAuthenticated, isLocked, isReady, router, segmentKey]);
+  };
 
-  if (isAuthenticated && (isLoading || !isReady)) {
-    return <ScreenLoading text="Checking account..." />;
-  }
+  if (!isReady) return <ScreenLoading text="Opening FitTrack..." />;
+  if (!isLocked) return <>{children}</>;
 
-  return <>{children}</>;
+  return (
+    <View style={{ flex: 1, backgroundColor: '#051424', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+      <Text style={{ color: '#9EF01A', fontSize: 26, fontWeight: '700', marginBottom: 12 }}>FitTrack is locked</Text>
+      <Text style={{ color: '#C3C9B2', textAlign: 'center', marginBottom: 24 }}>Unlock to view the data stored on this device.</Text>
+      {error ? <Text style={{ color: '#FFB4AB', textAlign: 'center', marginBottom: 16 }}>{error}</Text> : null}
+      <TouchableOpacity onPress={() => void unlock()} disabled={unlocking} style={{ paddingHorizontal: 24, paddingVertical: 14, borderRadius: 24, backgroundColor: '#9EF01A' }}>
+        <Text style={{ color: '#051424', fontWeight: '700' }}>{unlocking ? 'Checking…' : 'Unlock with biometrics'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => void unlock()} disabled={unlocking} style={{ marginTop: 16, padding: 12 }}>
+        <Text style={{ color: '#C3C9B2' }}>Use device passcode</Text>
+      </TouchableOpacity>
+    </View>
+  );
 }

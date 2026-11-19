@@ -1,4 +1,4 @@
-/** Normalize wrAuth / SQLite timestamps to epoch ms for stats and sorting. */
+/** Normalize remote / SQLite timestamps to epoch ms for stats and sorting. */
 export const parseTimestampMs = (value: unknown): number => {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value > 0 ? value : 0;

@@ -5,13 +5,12 @@ import { HapticButton } from '@/components/ui/haptic-button';
 import { FitnessCategoryIcon } from '@/components/icons/FitnessCategoryIcon';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Input } from '@/components/ui/Input';
-import { ThemedText } from '@/components/ui/themed-text';
-import { CategoryColorPalette } from '@/constants/theme';
+import { CategoryColorPalette } from '@/constants/fittrack-theme';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Category } from '@/types/category.types';
 import { Image } from 'expo-image';
 import React from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface PhotoPreviewCardProps {
   imageUri: string | null | undefined;
@@ -22,7 +21,7 @@ export function PhotoPreviewCard({ imageUri }: PhotoPreviewCardProps) {
 
   return (
     <Card variant="elevated" style={{ ...styles.photoPreview, backgroundColor: colors.cardBackground }}>
-      <ThemedText style={styles.previewLabel}>Photo Preview</ThemedText>
+      <Text style={[styles.previewLabel, { color: colors.text }]}>Photo Preview</Text>
       <View style={styles.imageContainer}>
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.previewImage} />
@@ -62,7 +61,7 @@ export function CategoryGrid({ categories, selectedCategories, onSelect }: Categ
                 <View style={[styles.categoryIcon, { backgroundColor: category.color }]}>
                   <FitnessCategoryIcon iconId={category.icon} size={28} color="white" />
                 </View>
-                <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
+                <Text style={[styles.categoryName, { color: colors.text }]}>{category.name}</Text>
                 {selectedCategories.includes(category.id) ? (
                   <View style={styles.selectedIndicator}>
                     <IconSymbol name="checkmark.circle.fill" size={24} color={category.color} />
@@ -121,7 +120,7 @@ export function NewCategoryEntry({
         pressScale={0.95}
       >
         <IconSymbol name="plus" size={24} color={colors.accent} />
-        <ThemedText style={styles.newCategoryText}>Create New Category</ThemedText>
+        <Text style={[styles.newCategoryText, { color: colors.text }]}>Create New Category</Text>
       </HapticButton>
 
       {visible ? (
@@ -150,7 +149,7 @@ export function NewCategoryEntry({
             />
           </View>
           <View style={styles.colorSection}>
-            <ThemedText style={styles.colorLabel}>Choose Color</ThemedText>
+            <Text style={[styles.colorLabel, { color: colors.text }]}>Choose Color</Text>
             <View style={styles.colorGrid}>
               {CategoryColorPalette.map((paletteColor) => {
                 const isSelected = paletteColor === newCategoryColor;
@@ -198,9 +197,9 @@ export function HelpText({ visible }: HelpTextProps) {
 
   return (
     <View style={styles.helpContainer}>
-      <ThemedText style={[styles.helpText, { color: colors.icon }]}>
+      <Text style={[styles.helpText, { color: colors.icon }]}>
         Please select at least one category to continue.
-      </ThemedText>
+      </Text>
     </View>
   );
 }
@@ -226,9 +225,9 @@ export function SaveButtonBar({ selectedCount, onSave }: SaveButtonBarProps) {
       pressScale={0.95}
     >
       <IconSymbol name="checkmark" size={24} color="white" />
-      <ThemedText style={styles.saveButtonText}>
+      <Text style={[styles.saveButtonText, { color: 'white' }]}>
         {isEnabled ? `Save Photo (${selectedCount} categories)` : 'Select a category to save'}
-      </ThemedText>
+      </Text>
     </HapticButton>
   );
 }

@@ -1,9 +1,8 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ButtonSize, ButtonVariant, HapticType } from '@/types/common.types';
 import React from 'react';
-import { TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 
 interface ButtonProps {
   title: string;
@@ -102,21 +101,21 @@ export function Button({
       activeOpacity={0.7}
     >
         {icon && iconPosition === 'left' && !loading && (
-          <IconSymbol 
-            name={icon as any} 
-            size={size === 'small' ? 16 : size === 'large' ? 20 : 18} 
-            color={getTextStyle().color || '#333'} 
+          <IconSymbol
+            name={icon as any}
+            size={size === 'small' ? 16 : size === 'large' ? 20 : 18}
+            color={getTextStyle().color || '#333'}
             style={{ marginRight: 8 }}
           />
         )}
-      <ThemedText style={[getTextStyle(), textStyle]}>
+      <Text style={[getTextStyle(), textStyle]}>
         {displayTitle}
-      </ThemedText>
+      </Text>
       {icon && iconPosition === 'right' && !loading && (
-        <IconSymbol 
-          name={icon as any} 
-          size={size === 'small' ? 16 : size === 'large' ? 20 : 18} 
-          color={getTextStyle().color || '#333'} 
+        <IconSymbol
+          name={icon as any}
+          size={size === 'small' ? 16 : size === 'large' ? 20 : 18}
+          color={getTextStyle().color || '#333'}
           style={{ marginLeft: 8 }}
         />
       )}

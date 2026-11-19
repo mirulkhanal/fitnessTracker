@@ -1,6 +1,7 @@
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -44,16 +45,17 @@ function StatCard({
   suffix?: string;
   icon: React.ComponentProps<typeof IconSymbol>['name'];
 }) {
+  const { fitTrackColors } = useTheme();
   return (
     <GlassPanel style={styles.card}>
       <View style={styles.cardInner}>
         <View style={styles.cardHeader}>
-          <Text style={styles.label}>{label}</Text>
-          <IconSymbol name={icon} size={22} color={FitTrackColors.primaryContainer} />
+          <Text style={[styles.label, { color: fitTrackColors.onSurfaceVariant }]}>{label}</Text>
+          <IconSymbol name={icon} size={22} color={fitTrackColors.primaryContainer} />
         </View>
         <View style={styles.valueRow}>
-          <Text style={styles.value}>{value}</Text>
-          {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
+          <Text style={[styles.value, { color: fitTrackColors.primaryContainer }]}>{value}</Text>
+          {suffix ? <Text style={[styles.suffix, { color: fitTrackColors.onSurfaceVariant }]}>{suffix}</Text> : null}
         </View>
       </View>
     </GlassPanel>

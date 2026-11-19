@@ -1,8 +1,9 @@
 import { FitnessCategoryIcon } from '@/components/icons/FitnessCategoryIcon';
 import { fitnessIconIds } from '@/components/icons/custom-icons';
-import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { CategoryStats } from '@/types/category.types';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface ProgressCategoryChipsProps {
@@ -16,6 +17,7 @@ export function ProgressCategoryChips({
   selectedId,
   onSelect,
 }: ProgressCategoryChipsProps) {
+  const styles = useStyles();
   if (categories.length === 0) {
     return null;
   }
@@ -57,7 +59,9 @@ export function ProgressCategoryChips({
   );
 }
 
-const styles = StyleSheet.create({
+function useStyles() {
+  const { fitTrackColors: FitTrackColors } = useTheme();
+  return useMemo(() => StyleSheet.create({
   row: {
     gap: 10,
     paddingVertical: 4,
@@ -103,4 +107,5 @@ const styles = StyleSheet.create({
     color: FitTrackColors.onSurfaceVariant,
     opacity: 0.7,
   },
-});
+  }), [FitTrackColors]);
+}

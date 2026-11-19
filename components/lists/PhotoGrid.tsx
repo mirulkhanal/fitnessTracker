@@ -1,10 +1,9 @@
 import { Card } from '@/components/ui/Card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Image } from 'expo-image';
 import React from 'react';
-import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface PhotoItem {
   id: string;
@@ -20,12 +19,12 @@ interface PhotoGridProps {
   loading?: boolean;
 }
 
-export function PhotoGrid({ 
-  photos, 
-  onPhotoPress, 
-  onDeletePhoto, 
+export function PhotoGrid({
+  photos,
+  onPhotoPress,
+  onDeletePhoto,
   numColumns = 2,
-  loading = false 
+  loading = false
 }: PhotoGridProps) {
   const { colors } = useTheme();
 
@@ -39,9 +38,9 @@ export function PhotoGrid({
       >
         <Image source={{ uri: item.uri }} style={styles.image} />
         <View style={[styles.photoFooter, { backgroundColor: colors.cardBackground }]}>
-          <ThemedText style={[styles.photoDate, { color: colors.text }]}>
+          <Text style={[styles.photoDate, { color: colors.text }]}>
             {new Date(item.timestamp).toLocaleDateString()}
-          </ThemedText>
+          </Text>
           {onDeletePhoto ? (
             <TouchableOpacity
               style={[styles.deletePill, { backgroundColor: colors.pinkAccent + '20' }]}
@@ -61,7 +60,7 @@ export function PhotoGrid({
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ThemedText>Loading photos...</ThemedText>
+        <Text style={{ color: colors.text }}>Loading photos...</Text>
       </View>
     );
   }
@@ -71,12 +70,12 @@ export function PhotoGrid({
       <View style={styles.emptyContainer}>
         <Card variant="elevated" style={{ ...styles.emptyCard, backgroundColor: colors.cardBackground }}>
           <IconSymbol name="photo" size={80} color="#ccc" />
-          <ThemedText type="subtitle" style={styles.emptyTitle}>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
             No Photos Yet
-          </ThemedText>
-          <ThemedText style={styles.emptySubtitle}>
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.text }]}>
             Start capturing photos to see your progress!
-          </ThemedText>
+          </Text>
         </Card>
       </View>
     );

@@ -3,16 +3,6 @@ name: Android Release
 on:
   push:
     branches: [master]
-  workflow_dispatch:
-    inputs:
-      variant:
-        description: APK build variant (release is production-like; debug skips R8 for faster CI)
-        required: true
-        default: release
-        type: choice
-        options:
-          - release
-          - debug
 
 permissions:
   contents: write
@@ -23,12 +13,9 @@ concurrency:
 
 jobs:
   build-and-publish:
-    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      EXPO_PUBLIC_WRAUTH_API_URL: ${{ secrets.EXPO_PUBLIC_WRAUTH_API_URL }}
-      EXPO_PUBLIC_WRAUTH_APP_KEY: ${{ secrets.EXPO_PUBLIC_WRAUTH_APP_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
@@ -52,23 +39,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Validate required secrets
-        run: |
-          if [ -z "$EXPO_PUBLIC_WRAUTH_API_URL" ] || [ -z "$EXPO_PUBLIC_WRAUTH_APP_KEY" ]; then
-            echo "::error::Missing GitHub secrets: EXPO_PUBLIC_WRAUTH_API_URL or EXPO_PUBLIC_WRAUTH_APP_KEY"
-            exit 1
-          fi
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Verify Expo SDK dependency versions
         run: pnpm verify:expo
-
-      - name: Write .env for native build
-        run: |
-          printf 'EXPO_PUBLIC_WRAUTH_API_URL=%s\n' "$EXPO_PUBLIC_WRAUTH_API_URL" > .env
-          printf 'EXPO_PUBLIC_WRAUTH_APP_KEY=%s\n' "$EXPO_PUBLIC_WRAUTH_APP_KEY" >> .env
 
       - name: Cache Android SDK and Gradle
         uses: actions/cache@v4
@@ -83,27 +58,17 @@ jobs:
       - name: Setup Android SDK
         run: pnpm setup:android-sdk
 
-      - name: Set build variant
-        id: variant
-        run: |
-          VALUE="${{ github.event_name == 'workflow_dispatch' && inputs.variant || 'release' }}"
-          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
-
-      - name: Build APK locally
+      - name: Build release APK
         env:
           NODE_ENV: production
         run: |
           source .android-sdk.env
-          if [ "${{ steps.variant.outputs.value }}" = "release" ]; then
-            pnpm build:android:local
-          else
-            pnpm build:android:local:debug
-          fi
+          pnpm build:android:local
 
       - name: Resolve release version
         id: version
         env:
-          RELEASE_VARIANT: ${{ steps.variant.outputs.value }}
+          RELEASE_VARIANT: release
         run: python3 scripts/resolve-release-version.py
 
       - name: Publish GitHub Release

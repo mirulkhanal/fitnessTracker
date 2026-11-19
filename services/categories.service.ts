@@ -1,65 +1,55 @@
 import { Category, CreateCategoryRequest } from '@/types/category.types';
+import { databaseService, getDatabase } from './database.service';
 
-import { dataMigrationService } from './data-migration.service';
-import { wrAuthDataService } from './wrauth-data.service';
+type CategoryRow = Category & { created_at: string };
 
-const mapCategory = (row: {
-  id: string;
-  name: string;
-  color: string;
-  icon: string;
-}): Category => ({
+const mapCategory = (row: CategoryRow): Category => ({
   id: row.id,
   name: row.name,
   color: row.color,
   icon: row.icon,
 });
 
-const ensureSynced = async () => {
-  await dataMigrationService.migrateLocalDataToWrAuthIfNeeded();
-};
-
 const listCategories = async (): Promise<Category[]> => {
-  await ensureSynced();
-  const rows = await wrAuthDataService.listCategories();
+  const rows = getDatabase().getAllSync<CategoryRow>(
+    'SELECT id, name, color, icon, created_at FROM categories ORDER BY created_at ASC'
+  );
   return rows.map(mapCategory);
 };
 
 const createCategory = async (request: CreateCategoryRequest): Promise<Category> => {
-  await ensureSynced();
-  const row = await wrAuthDataService.createCategory({
+  const row: CategoryRow = {
+    id: databaseService.createId(),
     name: request.name.trim(),
     color: request.color ?? '#6C7B7F',
     icon: request.icon,
-  });
+    created_at: new Date().toISOString(),
+  };
+  getDatabase().runSync(
+    'INSERT INTO categories (id, name, color, icon, created_at) VALUES (?, ?, ?, ?, ?)',
+    [row.id, row.name, row.color, row.icon, row.created_at]
+  );
   return mapCategory(row);
 };
 
 const updateCategory = async (id: string, updates: Partial<Category>): Promise<Category> => {
-  await ensureSynced();
-  const existingRows = await wrAuthDataService.listCategories();
-  const existing = existingRows.find(row => row.id === id);
-  if (!existing) {
-    throw new Error('Category not found');
-  }
-
-  const row = await wrAuthDataService.updateCategory(id, {
-    ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
-    ...(updates.color !== undefined ? { color: updates.color } : {}),
-    ...(updates.icon !== undefined ? { icon: updates.icon } : {}),
-  });
-
-  return mapCategory(row);
+  const db = getDatabase();
+  const current = db.getFirstSync<CategoryRow>(
+    'SELECT id, name, color, icon, created_at FROM categories WHERE id = ?', [id]
+  );
+  if (!current) throw new Error('Category not found.');
+  const next = {
+    name: updates.name !== undefined ? updates.name.trim() : current.name,
+    color: updates.color ?? current.color,
+    icon: updates.icon ?? current.icon,
+  };
+  db.runSync('UPDATE categories SET name = ?, color = ?, icon = ? WHERE id = ?',
+    [next.name, next.color, next.icon, id]);
+  return { id, ...next };
 };
 
 const deleteCategory = async (id: string): Promise<void> => {
-  await ensureSynced();
-  await wrAuthDataService.deleteCategory(id);
+  getDatabase().runSync('DELETE FROM categories WHERE id = ?', [id]);
 };
 
-export const categoriesService = {
-  listCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-};
+export const categoriesService = { listCategories, createCategory, updateCategory, deleteCategory };

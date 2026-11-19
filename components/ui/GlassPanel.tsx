@@ -1,4 +1,5 @@
-import { FitTrackColors, FitTrackRadius } from '@/constants/fittrack-theme';
+import { FitTrackRadius } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { BlurView } from 'expo-blur';
 import React from 'react';
 import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -11,7 +12,8 @@ interface GlassPanelProps {
 }
 
 export function GlassPanel({ children, style, contentStyle, active = false }: GlassPanelProps) {
-  const fill = active ? FitTrackColors.glassFillActive : FitTrackColors.glassFill;
+  const { fitTrackColors, isDarkMode } = useTheme();
+  const fill = active ? fitTrackColors.glassFillActive : fitTrackColors.glassFill;
 
   if (Platform.OS === 'web') {
     return (
@@ -20,7 +22,7 @@ export function GlassPanel({ children, style, contentStyle, active = false }: Gl
           styles.panel,
           {
             backgroundColor: fill,
-            borderColor: FitTrackColors.glassBorder,
+            borderColor: fitTrackColors.glassBorder,
           },
           style,
         ]}
@@ -32,15 +34,15 @@ export function GlassPanel({ children, style, contentStyle, active = false }: Gl
 
   return (
     <View style={[styles.wrapper, style]}>
-      <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
+      <BlurView intensity={50} tint={isDarkMode ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
       <View
         style={[
           styles.panel,
           styles.panelOverlay,
           {
             backgroundColor: fill,
-            borderColor: FitTrackColors.glassBorder,
-            borderTopColor: FitTrackColors.glassBorderHighlight,
+            borderColor: fitTrackColors.glassBorder,
+            borderTopColor: fitTrackColors.glassBorderHighlight,
           },
         ]}
       />

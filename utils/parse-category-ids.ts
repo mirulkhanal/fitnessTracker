@@ -1,4 +1,4 @@
-/** Parse category IDs from wrAuth (JSON string) or a native JSON array. */
+/** Parse category IDs from stored JSON strings or native JSON arrays. */
 export const parseCategoryIds = (value: unknown): string[] => {
   if (Array.isArray(value)) {
     return value.map(item => String(item)).filter(Boolean);

@@ -11,7 +11,8 @@ import { PhotoSourceModal } from '@/components/modals/photo-source-modal';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
 import { useAlert } from '@/contexts/AlertContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useLocalProfile } from '@/contexts/LocalProfileContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useHomeData } from '@/hooks/use-home-data';
 import { useImagePickerModal } from '@/hooks/use-image-picker-modal';
 import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
@@ -20,7 +21,8 @@ const HEADER_OFFSET = 108;
 
 export default function HomeScreen() {
   const { showAlert } = useAlert();
-  const { session } = useAuth();
+  const { profile } = useLocalProfile();
+  const { fitTrackColors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
 
   const openWorkoutReminders = useOpenWorkoutReminders();
@@ -28,7 +30,7 @@ export default function HomeScreen() {
   const { stats, latestPhoto, lastPhotoLabel, isInitialLoad, isRefreshing, deletePhoto, refresh } =
     useHomeData();
 
-  const displayName = session?.display_name?.trim() || 'Athlete';
+  const displayName = profile.display_name.trim() || 'Athlete';
 
   const handleImageCapture = () => {
     setModalVisible(true);
@@ -95,9 +97,9 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: fitTrackColors.background }]}>
       <HomeTopBar
-        avatarUrl={session?.avatar_url}
+        avatarUrl={profile.avatar_url}
         displayName={displayName}
         onProfilePress={() => router.push('/(tabs)/settings')}
         onNotificationsPress={openWorkoutReminders}
@@ -113,8 +115,8 @@ export default function HomeScreen() {
         >
           {isRefreshing ? (
             <View style={styles.refreshRow}>
-              <ActivityIndicator size="small" color={FitTrackColors.primaryContainer} />
-              <Text style={styles.refreshText}>Updating progress…</Text>
+              <ActivityIndicator size="small" color={fitTrackColors.primaryContainer} />
+              <Text style={[styles.refreshText, { color: fitTrackColors.onSurfaceVariant }]}>Updating progress…</Text>
             </View>
           ) : null}
           <HomeWelcome name={displayName} />

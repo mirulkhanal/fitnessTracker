@@ -1,5 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -18,6 +19,7 @@ const TAB_CONFIG: Record<
 
 export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { fitTrackColors } = useTheme();
   const bottomPad = Math.max(insets.bottom, 8);
 
   return (
@@ -26,7 +28,8 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
         styles.bar,
         {
           paddingBottom: bottomPad,
-          backgroundColor: FitTrackColors.tabBarBackground,
+          backgroundColor: fitTrackColors.tabBarBackground,
+          borderTopColor: fitTrackColors.glassBorder,
         },
       ]}
     >
@@ -67,18 +70,19 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
               onLongPress={onLongPress}
               style={styles.tab}
             >
-              <View style={[styles.tabInner, isActive && styles.tabInnerActive]}>
+              <View style={[styles.tabInner, isActive && styles.tabInnerActive, isActive && { backgroundColor: fitTrackColors.primaryContainerMuted }]}>
                 <IconSymbol
                   name={config.icon}
                   size={24}
                   color={
-                    isActive ? FitTrackColors.primaryContainer : FitTrackColors.onSecondaryContainer
+                    isActive ? fitTrackColors.primaryContainer : fitTrackColors.onSecondaryContainer
                   }
                 />
                 <Text
                   style={[
                     styles.tabLabel,
                     isActive ? styles.tabLabelActive : styles.tabLabelInactive,
+                    { color: isActive ? fitTrackColors.primaryContainer : fitTrackColors.onSurfaceVariant },
                   ]}
                 >
                   {config.label}

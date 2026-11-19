@@ -1,9 +1,7 @@
 import { HomeTopBar } from '@/components/home/HomeTopBar';
-import { DeleteAccountPasswordModal } from '@/components/settings/DeleteAccountPasswordModal';
 import { ProfileEditModal } from '@/components/settings/ProfileEditModal';
 import {
   AboutSection,
-  AccountSection,
   DataManagementSection,
   PreferencesSection,
   ProfileCardSection,
@@ -11,9 +9,8 @@ import {
   SettingsFooter,
   SettingsHeader,
 } from '@/components/settings/SettingsSections';
-import { FitTrackColors } from '@/constants/fittrack-theme';
-import { useAuth } from '@/contexts/AuthContext';
-import { useBiometricLoginSetting } from '@/hooks/use-biometric-login-setting';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useBiometricAppLockSetting } from '@/hooks/use-biometric-app-lock-setting';
 import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 import { useSettingsActions } from '@/hooks/use-settings-actions';
 import { useWorkoutReminders } from '@/hooks/use-workout-reminders';
@@ -23,12 +20,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 const HEADER_OFFSET = 108;
 
 export default function SettingsScreen() {
-  const { session } = useAuth();
-  const displayName = session?.display_name?.trim() || 'Athlete';
-
+  const { fitTrackColors } = useTheme();
   const {
-    signedIn,
-    email,
     profileDisplayName,
     profileBio,
     profileAvatarUri,
@@ -48,86 +41,36 @@ export default function SettingsScreen() {
     exportingData,
     handleAbout,
     handlePrivacy,
-    handleDeleteAccount,
-    deletePasswordVisible,
-    deletingAccount,
-    closeDeletePasswordModal,
-    confirmDeleteAccount,
-    handleSignOut,
     isDarkMode,
     toggleTheme,
   } = useSettingsActions();
   const {
     showSetting: showBiometricSetting,
-    loginLabel: biometricLabel,
+    biometricLabel,
     enabled: biometricEnabled,
     loading: biometricLoading,
     toggling: biometricToggling,
     handleToggle: handleToggleBiometric,
-  } = useBiometricLoginSetting();
+  } = useBiometricAppLockSetting();
   const openWorkoutReminders = useOpenWorkoutReminders();
   const { summary: workoutRemindersSummary } = useWorkoutReminders();
+  const displayName = profileDisplayName.trim() || 'Athlete';
 
   return (
-    <View style={styles.container}>
-      <HomeTopBar
-        avatarUrl={session?.avatar_url ?? avatarUriDraft}
-        displayName={displayName}
-        onProfilePress={() => {}}
-        onNotificationsPress={openWorkoutReminders}
-      />
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_OFFSET }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+    <View style={[styles.container, { backgroundColor: fitTrackColors.background }]}>
+      <HomeTopBar avatarUrl={profileAvatarUri} displayName={displayName} onProfilePress={() => {}} onNotificationsPress={openWorkoutReminders} />
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_OFFSET }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <SettingsHeader />
-        <ProfileCardSection
-          signedIn={signedIn}
-          email={email}
-          displayName={profileDisplayName}
-          bio={profileBio}
-          avatarUri={profileAvatarUri}
-          onEdit={openProfileEdit}
-        />
-        <PreferencesSection
-          workoutRemindersSummary={workoutRemindersSummary}
-          onOpenWorkoutReminders={openWorkoutReminders}
-          isDarkMode={isDarkMode}
-          onToggleTheme={toggleTheme}
-        />
-        <SecuritySection
-          showBiometricSetting={showBiometricSetting}
-          biometricLabel={biometricLabel}
-          biometricEnabled={biometricEnabled}
-          biometricLoading={biometricLoading}
-          biometricToggling={biometricToggling}
-          onToggleBiometric={handleToggleBiometric}
-        />
+        <ProfileCardSection displayName={profileDisplayName} bio={profileBio} avatarUri={profileAvatarUri} onEdit={openProfileEdit} />
+        <PreferencesSection workoutRemindersSummary={workoutRemindersSummary} onOpenWorkoutReminders={openWorkoutReminders} isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+        <SecuritySection showBiometricSetting={showBiometricSetting} biometricLabel={biometricLabel} biometricEnabled={biometricEnabled} biometricLoading={biometricLoading} biometricToggling={biometricToggling} onToggleBiometric={handleToggleBiometric} />
         <DataManagementSection onExport={handleExportData} exporting={exportingData} />
-        <AccountSection
-          signedIn={signedIn}
-          onSignOut={handleSignOut}
-          onDeleteAccount={handleDeleteAccount}
-        />
         <AboutSection onAbout={handleAbout} onPrivacy={handlePrivacy} />
         <SettingsFooter />
       </ScrollView>
-
-      <DeleteAccountPasswordModal
-        visible={deletePasswordVisible}
-        deleting={deletingAccount}
-        onClose={closeDeletePasswordModal}
-        onConfirm={password => {
-          void confirmDeleteAccount(password);
-        }}
-      />
-
       <ProfileEditModal
         visible={profileEditVisible}
-        email={email}
+        profileNote="Stored only on this device"
         displayName={displayNameDraft}
         bio={bioDraft}
         avatarUri={avatarUriDraft}
@@ -144,15 +87,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: FitTrackColors.background,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-  },
+  container: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 32 },
 });

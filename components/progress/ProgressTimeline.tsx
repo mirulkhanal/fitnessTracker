@@ -1,7 +1,8 @@
-import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
+import { FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { ProgressImage } from '@/types/photo.types';
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 interface ProgressTimelineProps {
@@ -27,6 +28,7 @@ function formatTimelineTime(timestamp: number): string {
 }
 
 export function ProgressTimeline({ photos, categoryName }: ProgressTimelineProps) {
+  const styles = useStyles();
   if (photos.length === 0) {
     return null;
   }
@@ -68,7 +70,9 @@ export function ProgressTimeline({ photos, categoryName }: ProgressTimelineProps
   );
 }
 
-const styles = StyleSheet.create({
+function useStyles() {
+  const { fitTrackColors: FitTrackColors } = useTheme();
+  return useMemo(() => StyleSheet.create({
   container: {
     gap: 12,
   },
@@ -168,4 +172,5 @@ const styles = StyleSheet.create({
     borderRadius: FitTrackRadius.md,
     backgroundColor: FitTrackColors.surfaceContainerLow,
   },
-});
+  }), [FitTrackColors]);
+}

@@ -1,10 +1,9 @@
 import { Card } from '@/components/ui/Card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Image } from 'expo-image';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 interface PhotoCardProps {
   imageUri: string;
@@ -14,40 +13,40 @@ interface PhotoCardProps {
   onPress?: () => void;
 }
 
-export function PhotoCard({ 
-  imageUri, 
-  title, 
-  category, 
-  date, 
-  onPress 
+export function PhotoCard({
+  imageUri,
+  title,
+  category,
+  date,
+  onPress
 }: PhotoCardProps) {
   const { colors } = useTheme();
 
   return (
-    <Card 
-      variant="elevated" 
+    <Card
+      variant="elevated"
       style={{ ...styles.card, backgroundColor: colors.cardBackground }}
       onPress={onPress}
     >
       {title && (
-        <ThemedText type="subtitle" style={styles.title}>{title}</ThemedText>
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
       )}
-      
+
       <View style={styles.imageContainer}>
         <Image source={{ uri: imageUri }} style={styles.image} />
       </View>
-      
+
       {(category || date) && (
         <View style={styles.info}>
           {category && (
-            <ThemedText style={styles.category}>
+            <Text style={[styles.category, { color: colors.text }]}>
               Category: {category}
-            </ThemedText>
+            </Text>
           )}
           {date && (
-            <ThemedText style={styles.date}>
+            <Text style={[styles.date, { color: colors.text }]}>
               {date}
-            </ThemedText>
+            </Text>
           )}
         </View>
       )}
@@ -63,23 +62,23 @@ interface EmptyCardProps {
   onButtonPress?: () => void;
 }
 
-export function EmptyCard({ 
-  icon, 
-  title, 
-  description, 
-  buttonTitle, 
-  onButtonPress 
+export function EmptyCard({
+  icon,
+  title,
+  description,
+  buttonTitle,
+  onButtonPress
 }: EmptyCardProps) {
   const { colors } = useTheme();
 
   return (
-    <Card 
-      variant="elevated" 
+    <Card
+      variant="elevated"
       style={{ ...styles.emptyCard, backgroundColor: colors.cardBackground }}
     >
       <IconSymbol name={icon as any} size={80} color={colors.icon} />
-      <ThemedText type="subtitle" style={styles.emptyTitle}>{title}</ThemedText>
-      <ThemedText style={styles.emptyDescription}>{description}</ThemedText>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>{title}</Text>
+      <Text style={[styles.emptyDescription, { color: colors.text }]}>{description}</Text>
       {buttonTitle && onButtonPress && (
         <View style={styles.buttonContainer}>
           {/* Button component would go here if needed */}

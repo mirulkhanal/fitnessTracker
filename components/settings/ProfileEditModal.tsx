@@ -1,6 +1,6 @@
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
-import { useAuthenticatedImageSource } from '@/hooks/use-authenticated-image-source';
+import { useLocalImageSource } from '@/hooks/use-local-image-source';
 import { Image } from 'expo-image';
 import React, { useEffect, useMemo } from 'react';
 import {
@@ -24,7 +24,7 @@ const MODAL_SPRING = { damping: 24, stiffness: 280, mass: 0.85 };
 
 export interface ProfileEditModalProps {
   visible: boolean;
-  email: string;
+  profileNote: string;
   displayName: string;
   bio: string;
   avatarUri: string | null;
@@ -39,7 +39,7 @@ export interface ProfileEditModalProps {
 
 export function ProfileEditModal({
   visible,
-  email,
+  profileNote,
   displayName,
   bio,
   avatarUri,
@@ -56,9 +56,8 @@ export function ProfileEditModal({
   const overlayOpacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
   const cardOpacity = useSharedValue(0);
-  const avatarSource = useAuthenticatedImageSource(avatarUri);
-  const fallbackName =
-    displayName.trim() || (email.includes('@') ? email.split('@')[0] : 'Profile');
+  const avatarSource = useLocalImageSource(avatarUri);
+  const fallbackName = displayName.trim() || 'Profile';
 
   const maxCardHeight = useMemo(
     () => windowHeight - insets.top - insets.bottom - 48,
@@ -140,7 +139,7 @@ export function ProfileEditModal({
                     )}
                   </TouchableOpacity>
                   <View style={styles.profileMeta}>
-                    <Text style={styles.profileEmail}>{email}</Text>
+                    <Text style={styles.profileNoteText}>{profileNote}</Text>
                     <TouchableOpacity onPress={onPickAvatar} activeOpacity={0.7}>
                       <Text style={styles.changePhoto}>Change photo</Text>
                     </TouchableOpacity>
@@ -148,7 +147,7 @@ export function ProfileEditModal({
                 </View>
 
                 <View style={styles.field}>
-                  <Text style={styles.fieldLabel}>Display name</Text>
+                  <Text style={styles.fieldLabel}>Full name</Text>
                   <TextInput
                     style={styles.input}
                     value={displayName}
@@ -281,7 +280,7 @@ const styles = StyleSheet.create({
   profileMeta: {
     flex: 1,
   },
-  profileEmail: {
+  profileNoteText: {
     fontFamily: FitTrackFonts.body,
     fontSize: 15,
     color: FitTrackColors.onSurfaceVariant,

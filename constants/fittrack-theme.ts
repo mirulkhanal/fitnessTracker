@@ -1,5 +1,5 @@
-/** FitTrack Progress UI tokens (dark athletic theme). */
-export const FitTrackColors = {
+/** FitTrack Progress UI tokens for the dark appearance. */
+const darkColors = {
   background: '#051424',
   surface: '#051424',
   surfaceContainerLowest: '#010f1f',
@@ -30,6 +30,42 @@ export const FitTrackColors = {
   tabBarBackground: '#0d1c2d',
 } as const;
 
+/** Companion palette that keeps the same brand accent in a readable light UI. */
+const lightColors = {
+  background: '#F5F7F2',
+  surface: '#FFFFFF',
+  surfaceContainerLowest: '#FFFFFF',
+  surfaceContainerLow: '#F0F3EC',
+  surfaceContainer: '#E9EEE4',
+  surfaceContainerHigh: '#E1E8DA',
+  surfaceContainerHighest: '#D6DFCE',
+  surfaceVariant: '#E1E8DA',
+  onBackground: '#17231A',
+  onSurface: '#17231A',
+  onSurfaceVariant: '#596650',
+  outline: '#7C8875',
+  outlineVariant: '#CCD6C5',
+  primaryContainer: '#416B17',
+  onPrimaryContainer: '#FFFFFF',
+  primaryContainerMuted: 'rgba(65, 107, 23, 0.10)',
+  primaryContainerBorder: 'rgba(65, 107, 23, 0.22)',
+  secondaryContainer: '#E2E9DC',
+  onSecondaryContainer: '#43503D',
+  glassFill: 'rgba(255, 255, 255, 0.82)',
+  glassFillActive: 'rgba(255, 255, 255, 0.96)',
+  glassBorder: 'rgba(33, 53, 29, 0.10)',
+  glassBorderHighlight: 'rgba(255, 255, 255, 0.95)',
+  fabGlow: 'rgba(65, 107, 23, 0.18)',
+  error: '#B42318',
+  deleteButton: '#B42318',
+  barBackground: '#F5F7F2',
+  tabBarBackground: '#FFFFFF',
+} as const;
+
+export const FitTrackColors = darkColors;
+export const FitTrackPalettes = { dark: darkColors, light: lightColors } as const;
+export type FitTrackPalette = (typeof FitTrackPalettes)[keyof typeof FitTrackPalettes];
+
 export const FitTrackRadius = {
   sm: 4,
   md: 8,
@@ -45,3 +81,16 @@ export const FitTrackFonts = {
   bodySemi: 'HankenGrotesk_600SemiBold',
   mono: 'JetBrainsMono_500Medium',
 } as const;
+
+export const CategoryColorPalette = [
+  '#EF4444',
+  '#F59E0B',
+  '#10B981',
+  '#3B82F6',
+  '#8B5CF6',
+  '#EC4899',
+  '#14B8A6',
+  '#F97316',
+  '#22C55E',
+  '#06B6D4',
+] as const;

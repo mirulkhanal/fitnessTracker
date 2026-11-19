@@ -1,13 +1,15 @@
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { FitTrackSwitch } from '@/components/ui/FitTrackSwitch';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
-import { useAuthenticatedImageSource } from '@/hooks/use-authenticated-image-source';
+import { FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useLocalImageSource } from '@/hooks/use-local-image-source';
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 function SectionLabel({ children }: { children: string }) {
+  const styles = useStyles();
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
@@ -21,17 +23,19 @@ interface SettingRowProps {
 }
 
 function SettingRow({ icon, title, subtitle, onPress, right, showDivider }: SettingRowProps) {
+  const styles = useStyles();
+  const { fitTrackColors } = useTheme();
   const content = (
     <View style={[styles.settingRow, showDivider && styles.settingRowDivider]}>
       <View style={styles.settingIconWrap}>
-        <IconSymbol name={icon} size={22} color={FitTrackColors.primaryContainer} />
+        <IconSymbol name={icon} size={22} color={fitTrackColors.primaryContainer} />
       </View>
       <View style={styles.settingCopy}>
         <Text style={styles.settingTitle}>{title}</Text>
         {subtitle ? <Text style={styles.settingSubtitle}>{subtitle}</Text> : null}
       </View>
       {right ?? (onPress ? (
-        <IconSymbol name="chevron.right" size={20} color={FitTrackColors.onSurfaceVariant} />
+        <IconSymbol name="chevron.right" size={20} color={fitTrackColors.onSurfaceVariant} />
       ) : null)}
     </View>
   );
@@ -48,6 +52,7 @@ function SettingRow({ icon, title, subtitle, onPress, right, showDivider }: Sett
 }
 
 export function SettingsHeader() {
+  const styles = useStyles();
   return (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>Settings</Text>
@@ -57,8 +62,6 @@ export function SettingsHeader() {
 }
 
 interface ProfileCardSectionProps {
-  signedIn: boolean;
-  email: string;
   displayName: string;
   bio: string | null;
   avatarUri: string | null;
@@ -66,57 +69,49 @@ interface ProfileCardSectionProps {
 }
 
 export function ProfileCardSection({
-  signedIn,
-  email,
   displayName,
   bio,
   avatarUri,
   onEdit,
 }: ProfileCardSectionProps) {
-  const avatarSource = useAuthenticatedImageSource(avatarUri);
-  const name =
-    displayName.trim() ||
-    (email !== 'Not signed in' && email !== 'Not available' ? email.split('@')[0] : 'Athlete');
+  const styles = useStyles();
+  const { fitTrackColors } = useTheme();
+  const avatarSource = useLocalImageSource(avatarUri);
+  const name = displayName.trim() || 'Athlete';
   const bioText = bio?.trim();
 
   return (
     <View style={styles.section}>
       <SectionLabel>PROFILE</SectionLabel>
       <GlassPanel style={styles.profileCard}>
-        {!signedIn ? (
-          <Text style={styles.signedOutText}>Sign in to view and edit your profile.</Text>
-        ) : (
-          <View style={styles.profileCardInner}>
-            <View style={styles.avatar}>
-              {avatarSource ? (
-                <Image source={avatarSource} style={styles.avatarImage} contentFit="cover" />
-              ) : (
-                <Text style={styles.avatarFallback}>{name.charAt(0).toUpperCase()}</Text>
-              )}
-            </View>
-
-            <View style={styles.profileCardBody}>
-              <Text style={styles.profileName}>{name}</Text>
-              <Text style={styles.profileEmailMuted}>{email}</Text>
-              {bioText ? (
-                <Text style={styles.profileBio} numberOfLines={3}>
-                  {bioText}
-                </Text>
-              ) : (
-                <Text style={styles.profileBioPlaceholder}>No bio yet</Text>
-              )}
-            </View>
-
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={onEdit}
-              activeOpacity={0.85}
-              accessibilityLabel="Edit profile"
-            >
-              <IconSymbol name="pencil" size={20} color={FitTrackColors.primaryContainer} />
-            </TouchableOpacity>
+        <View style={styles.profileCardInner}>
+          <View style={styles.avatar}>
+            {avatarSource ? (
+              <Image source={avatarSource} style={styles.avatarImage} contentFit="cover" />
+            ) : (
+              <Text style={[styles.avatarFallback, { color: fitTrackColors.onSecondaryContainer }]}>{name.charAt(0).toUpperCase()}</Text>
+            )}
           </View>
-        )}
+
+          <View style={styles.profileCardBody}>
+            <Text style={styles.profileName}>{name}</Text>
+            <Text style={styles.profileStorageNote}>Saved on this device</Text>
+            {bioText ? (
+              <Text style={styles.profileBio} numberOfLines={3}>{bioText}</Text>
+            ) : (
+              <Text style={styles.profileBioPlaceholder}>No bio yet</Text>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={onEdit}
+            activeOpacity={0.85}
+            accessibilityLabel="Edit profile"
+          >
+            <IconSymbol name="pencil" size={20} color={fitTrackColors.primaryContainer} />
+          </TouchableOpacity>
+        </View>
       </GlassPanel>
     </View>
   );
@@ -135,6 +130,7 @@ export function PreferencesSection({
   isDarkMode,
   onToggleTheme,
 }: PreferencesSectionProps) {
+  const styles = useStyles();
   return (
     <View style={styles.section}>
       <SectionLabel>PREFERENCES</SectionLabel>
@@ -174,13 +170,14 @@ export function SecuritySection({
   biometricToggling,
   onToggleBiometric,
 }: SecuritySectionProps) {
+  const styles = useStyles();
   if (!showBiometricSetting) {
     return null;
   }
 
   const subtitle = biometricLoading
     ? 'Checking device…'
-    : `Require ${biometricLabel.toLowerCase()} to open the app while staying signed in`;
+    : `Require ${biometricLabel.toLowerCase()} to unlock this app`;
 
   return (
     <View style={styles.section}>
@@ -209,6 +206,7 @@ interface DataManagementSectionProps {
 }
 
 export function DataManagementSection({ onExport, exporting = false }: DataManagementSectionProps) {
+  const styles = useStyles();
   return (
     <View style={styles.section}>
       <SectionLabel>DATA MANAGEMENT</SectionLabel>
@@ -219,7 +217,7 @@ export function DataManagementSection({ onExport, exporting = false }: DataManag
           subtitle={
             exporting
               ? 'Preparing your export…'
-              : 'Download decrypted photos organized by category'
+              : 'Create a local ZIP you can save or share'
           }
           onPress={exporting ? undefined : onExport}
           right={
@@ -233,38 +231,13 @@ export function DataManagementSection({ onExport, exporting = false }: DataManag
   );
 }
 
-interface AccountSectionProps {
-  signedIn: boolean;
-  onSignOut: () => void;
-  onDeleteAccount: () => void;
-}
-
-export function AccountSection({ signedIn, onSignOut, onDeleteAccount }: AccountSectionProps) {
-  return (
-    <View style={styles.section}>
-      <SectionLabel>ACCOUNT</SectionLabel>
-      <GlassPanel style={styles.glassCardTight}>
-        {signedIn ? (
-          <SettingRow
-            icon="trash"
-            title="Delete account"
-            subtitle="Permanently delete your account and cloud data"
-            onPress={onDeleteAccount}
-            showDivider
-          />
-        ) : null}
-        <SettingRow icon="rectangle.portrait.and.arrow.right" title="Sign out" onPress={onSignOut} />
-      </GlassPanel>
-    </View>
-  );
-}
-
 interface AboutSectionProps {
   onAbout: () => void;
   onPrivacy: () => void;
 }
 
 export function AboutSection({ onAbout, onPrivacy }: AboutSectionProps) {
+  const styles = useStyles();
   return (
     <View style={styles.section}>
       <SectionLabel>ABOUT</SectionLabel>
@@ -288,6 +261,7 @@ export function AboutSection({ onAbout, onPrivacy }: AboutSectionProps) {
 }
 
 export function SettingsFooter() {
+  const styles = useStyles();
   return (
     <View style={styles.footer}>
       <Text style={styles.footerText}>Made with ❤️ for fitness enthusiasts</Text>
@@ -296,7 +270,9 @@ export function SettingsFooter() {
   );
 }
 
-const styles = StyleSheet.create({
+function useStyles() {
+  const { fitTrackColors: FitTrackColors } = useTheme();
+  return useMemo(() => StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 28,
@@ -353,7 +329,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: FitTrackColors.onBackground,
   },
-  profileEmailMuted: {
+  profileStorageNote: {
     fontFamily: FitTrackFonts.body,
     fontSize: 14,
     color: FitTrackColors.onSurfaceVariant,
@@ -387,11 +363,6 @@ const styles = StyleSheet.create({
   glassCardTight: {
     borderRadius: FitTrackRadius.xl,
     overflow: 'hidden',
-  },
-  signedOutText: {
-    fontFamily: FitTrackFonts.body,
-    fontSize: 15,
-    color: FitTrackColors.onSurfaceVariant,
   },
   avatar: {
     width: 64,
@@ -469,4 +440,5 @@ const styles = StyleSheet.create({
     color: FitTrackColors.onSurfaceVariant,
     opacity: 0.8,
   },
-});
+  }), [FitTrackColors]);
+}

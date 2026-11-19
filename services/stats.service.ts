@@ -6,12 +6,10 @@ import {
   shouldUseWorkoutDayStreak,
 } from '@/utils/workout-streak';
 
-import { dataMigrationService } from './data-migration.service';
 import { photosService } from './photos.service';
 import { workoutScheduleService } from './workout-schedule.service';
 
 const getStats = async (): Promise<ProgressStats> => {
-  await dataMigrationService.migrateLocalDataToWrAuthIfNeeded();
   const timestamps = await photosService.listAvailablePhotoTimestamps();
 
   const totalPhotos = timestamps.length;

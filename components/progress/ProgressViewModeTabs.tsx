@@ -1,6 +1,7 @@
-import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import type { ProgressViewMode } from '@/types/progress-view.types';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const MODES: { id: ProgressViewMode; label: string }[] = [
@@ -22,6 +23,7 @@ export function ProgressViewModeTabs({
   compareDisabled = false,
   slideshowDisabled = false,
 }: ProgressViewModeTabsProps) {
+  const styles = useStyles();
   const isDisabled = (mode: ProgressViewMode) => {
     if (mode === 'compare') {
       return compareDisabled;
@@ -61,7 +63,9 @@ export function ProgressViewModeTabs({
   );
 }
 
-const styles = StyleSheet.create({
+function useStyles() {
+  const { fitTrackColors: FitTrackColors } = useTheme();
+  return useMemo(() => StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 8,
@@ -97,4 +101,5 @@ const styles = StyleSheet.create({
   tabTextDisabled: {
     color: FitTrackColors.onSurfaceVariant,
   },
-});
+  }), [FitTrackColors]);
+}

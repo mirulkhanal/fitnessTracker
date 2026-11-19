@@ -3,8 +3,8 @@ import { HomeFab } from '@/components/home/HomeFab';
 import { HomeTopBar } from '@/components/home/HomeTopBar';
 import { PhotoSourceModal } from '@/components/modals/photo-source-modal';
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
-import { FitTrackColors } from '@/constants/fittrack-theme';
-import { useAuth } from '@/contexts/AuthContext';
+import { useLocalProfile } from '@/contexts/LocalProfileContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useCategoryPhotoActions } from '@/hooks/use-category-photo-actions';
 import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,8 +17,9 @@ export default function CategoryViewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ categoryId?: string; categoryName?: string }>();
   const { categoryId, categoryName } = params;
-  const { session } = useAuth();
-  const displayName = session?.display_name?.trim() || 'Athlete';
+  const { profile } = useLocalProfile();
+  const { fitTrackColors } = useTheme();
+  const displayName = profile.display_name.trim() || 'Athlete';
 
   const {
     loading,
@@ -39,10 +40,10 @@ export default function CategoryViewScreen() {
 
   if (showInitialLoader) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: fitTrackColors.background }]}>
         <HomeTopBar
           displayName={displayName}
-          avatarUrl={session?.avatar_url}
+          avatarUrl={profile.avatar_url}
           onBackPress={() => router.back()}
           onNotificationsPress={openWorkoutReminders}
         />
@@ -54,10 +55,10 @@ export default function CategoryViewScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: fitTrackColors.background }]}>
       <HomeTopBar
         displayName={displayName}
-        avatarUrl={session?.avatar_url}
+        avatarUrl={profile.avatar_url}
         onBackPress={() => router.back()}
         onNotificationsPress={openWorkoutReminders}
       />
@@ -65,7 +66,7 @@ export default function CategoryViewScreen() {
       <View style={styles.body}>
         {loading && photos.length > 0 ? (
           <View style={styles.refreshOverlay}>
-            <ActivityIndicator size="small" color={FitTrackColors.primaryContainer} />
+            <ActivityIndicator size="small" color={fitTrackColors.primaryContainer} />
           </View>
         ) : null}
         <ScrollView
@@ -96,7 +97,6 @@ export default function CategoryViewScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: FitTrackColors.background,
   },
   body: {
     flex: 1,

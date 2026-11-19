@@ -1,7 +1,8 @@
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
-import React from 'react';
+import { FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
+import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface ProgressExportCardProps {
@@ -23,6 +24,8 @@ export function ProgressExportCard({
   shareCompareDisabled = false,
   shareCompareLoading = false,
 }: ProgressExportCardProps) {
+  const styles = useStyles();
+  const { fitTrackColors } = useTheme();
   const videoProgressLabel =
     videoExporting && videoExportProgress > 0
       ? `Encoding… ${Math.round(videoExportProgress * 100)}%`
@@ -45,9 +48,9 @@ export function ProgressExportCard({
         activeOpacity={0.85}
       >
         {videoExporting ? (
-          <ActivityIndicator size="small" color={FitTrackColors.primaryContainer} />
+          <ActivityIndicator size="small" color={fitTrackColors.primaryContainer} />
         ) : (
-          <IconSymbol name="photo.stack" size={20} color={FitTrackColors.primaryContainer} />
+          <IconSymbol name="photo.stack" size={20} color={fitTrackColors.primaryContainer} />
         )}
         <View style={styles.actionText}>
           <Text style={styles.actionTitle}>Export progress video</Text>
@@ -59,7 +62,7 @@ export function ProgressExportCard({
           </Text>
         </View>
         {!videoExporting ? (
-          <IconSymbol name="chevron.right" size={18} color={FitTrackColors.onSurfaceVariant} />
+          <IconSymbol name="chevron.right" size={18} color={fitTrackColors.onSurfaceVariant} />
         ) : null}
       </TouchableOpacity>
 
@@ -69,7 +72,7 @@ export function ProgressExportCard({
         disabled={shareCompareDisabled || shareCompareLoading}
         activeOpacity={0.85}
       >
-        <IconSymbol name="rectangle.fill" size={20} color={FitTrackColors.primaryContainer} />
+        <IconSymbol name="rectangle.fill" size={20} color={fitTrackColors.primaryContainer} />
         <View style={styles.actionText}>
           <Text style={styles.actionTitle}>Share before/after image</Text>
           <Text style={styles.actionSubtitle}>
@@ -80,13 +83,15 @@ export function ProgressExportCard({
                 : 'Side-by-side PNG · share or save'}
           </Text>
         </View>
-        <IconSymbol name="chevron.right" size={18} color={FitTrackColors.onSurfaceVariant} />
+        <IconSymbol name="chevron.right" size={18} color={fitTrackColors.onSurfaceVariant} />
       </TouchableOpacity>
     </GlassPanel>
   );
 }
 
-const styles = StyleSheet.create({
+function useStyles() {
+  const { fitTrackColors: FitTrackColors } = useTheme();
+  return useMemo(() => StyleSheet.create({
   panel: {
     padding: 16,
     gap: 12,
@@ -127,4 +132,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: FitTrackColors.onSurfaceVariant,
   },
-});
+  }), [FitTrackColors]);
+}

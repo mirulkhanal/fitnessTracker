@@ -10,9 +10,10 @@ import { ProgressViewModeTabs } from '@/components/progress/ProgressViewModeTabs
 import { ScreenLoading } from '@/components/ui/ScreenLoading';
 import { BEFORE_AFTER_EXPORT_WIDTH } from '@/constants/before-after-export';
 import { PROGRESS_VIDEO_WIDTH } from '@/constants/progress-video-export';
-import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { FitTrackFonts } from '@/constants/fittrack-theme';
 import { useAlert } from '@/contexts/AlertContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useLocalProfile } from '@/contexts/LocalProfileContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useBeforeAfterShare } from '@/hooks/use-before-after-share';
 import { useOpenWorkoutReminders } from '@/hooks/use-open-workout-reminders';
 import { useProgressScreen } from '@/hooks/use-progress-screen';
@@ -32,8 +33,9 @@ const TAB_BAR_PADDING = 100;
 
 export default function ProgressScreen() {
   const { showAlert } = useAlert();
-  const { session } = useAuth();
-  const displayName = session?.display_name?.trim() || 'Athlete';
+  const { profile } = useLocalProfile();
+  const { fitTrackColors } = useTheme();
+  const displayName = profile.display_name.trim() || 'Athlete';
 
   const {
     categoriesWithPhotos,
@@ -222,9 +224,9 @@ export default function ProgressScreen() {
   }, [runBeforeAfterExport, showAlert]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: fitTrackColors.background }]}>
       <HomeTopBar
-        avatarUrl={session?.avatar_url}
+        avatarUrl={profile.avatar_url}
         displayName={displayName}
         onProfilePress={() => router.push('/(tabs)/settings')}
         onNotificationsPress={openWorkoutReminders}
@@ -235,8 +237,8 @@ export default function ProgressScreen() {
         contentContainerStyle={[styles.scrollContent, { paddingTop: HEADER_OFFSET }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Progress</Text>
-        <Text style={styles.pageSubtitle}>
+        <Text style={[styles.pageTitle, { color: fitTrackColors.onBackground }]}>Progress</Text>
+        <Text style={[styles.pageSubtitle, { color: fitTrackColors.onSurfaceVariant }]}>
           Track transformation by category — timeline, compare, and slideshow.
         </Text>
 
@@ -244,8 +246,8 @@ export default function ProgressScreen() {
           <ScreenLoading text="Loading progress..." />
         ) : categoriesWithPhotos.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyTitle}>No progress photos yet</Text>
-            <Text style={styles.emptyBody}>
+            <Text style={[styles.emptyTitle, { color: fitTrackColors.onBackground }]}>No progress photos yet</Text>
+            <Text style={[styles.emptyBody, { color: fitTrackColors.onSurfaceVariant }]}>
               Add photos to a category from Home or Categories, then come back to see your journey.
             </Text>
           </View>
@@ -308,8 +310,8 @@ export default function ProgressScreen() {
               </>
             ) : (
               <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>No photos in this category</Text>
-                <Text style={styles.emptyBody}>Pick another category or add a progress photo.</Text>
+                <Text style={[styles.emptyTitle, { color: fitTrackColors.onBackground }]}>No photos in this category</Text>
+                <Text style={[styles.emptyBody, { color: fitTrackColors.onSurfaceVariant }]}>Pick another category or add a progress photo.</Text>
               </View>
             )}
           </>
@@ -345,7 +347,6 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: FitTrackColors.background,
   },
   scroll: {
     flex: 1,
@@ -359,14 +360,12 @@ const styles = StyleSheet.create({
     fontFamily: FitTrackFonts.displaySemi,
     fontSize: 28,
     lineHeight: 34,
-    color: FitTrackColors.onBackground,
     letterSpacing: -0.5,
   },
   pageSubtitle: {
     fontFamily: FitTrackFonts.body,
     fontSize: 15,
     lineHeight: 22,
-    color: FitTrackColors.onSurfaceVariant,
     marginTop: -8,
   },
   empty: {
@@ -376,13 +375,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontFamily: FitTrackFonts.displaySemi,
     fontSize: 20,
-    color: FitTrackColors.onBackground,
   },
   emptyBody: {
     fontFamily: FitTrackFonts.body,
     fontSize: 15,
     lineHeight: 22,
-    color: FitTrackColors.onSurfaceVariant,
   },
   exportCaptureHost: {
     position: 'absolute',

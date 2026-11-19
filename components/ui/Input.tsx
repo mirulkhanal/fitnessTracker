@@ -1,7 +1,6 @@
-import { ThemedText } from '@/components/ui/themed-text';
 import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
-import { StyleSheet, TextInput, TextStyle, View, ViewStyle } from 'react-native';
+import { StyleSheet, Text, TextInput, TextStyle, View, ViewStyle } from 'react-native';
 
 interface InputProps {
   value: string;
@@ -78,9 +77,9 @@ export function Input({
   return (
     <>
       {label && (
-        <ThemedText style={styles.label}>
+        <Text style={[styles.label, { color: colors.text }]}>
           {label}
-        </ThemedText>
+        </Text>
       )}
       <View style={[getInputStyle(), style]}>
         <TextInput
@@ -101,9 +100,9 @@ export function Input({
         />
       </View>
       {error && (
-        <ThemedText style={[styles.error, { color: colors.pinkAccent }]}>
+        <Text style={[styles.error, { color: colors.pinkAccent }]}>
           {error}
-        </ThemedText>
+        </Text>
       )}
     </>
   );

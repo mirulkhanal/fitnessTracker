@@ -23,7 +23,6 @@ One-time headless SDK setup (no Android Studio):
   sudo apt install openjdk-21-jdk-headless unzip curl ca-certificates
   pnpm setup:android-sdk
   source .android-sdk.env
-  cp .env.example .env
 EOF
 }
 
@@ -57,10 +56,6 @@ fi
 if [[ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]]; then
   echo "error: sdkmanager not found. Re-run: pnpm setup:android-sdk" >&2
   exit 1
-fi
-
-if [[ ! -f .env ]]; then
-  echo "warning: .env missing — copy .env.example and set wrAuth values for a working app." >&2
 fi
 
 patch_gradle_properties() {

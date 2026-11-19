@@ -3,6 +3,7 @@ import { FitnessCategoryIcon } from '@/components/icons/FitnessCategoryIcon';
 import { GlassPanel } from '@/components/ui/GlassPanel';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FitTrackColors, FitTrackFonts } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import { CategoryStats } from '@/types/category.types';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -29,6 +30,7 @@ const isRecentPhoto = (timestamp?: number) => {
 };
 
 export function CategoryExploreCard({ category, onPress, onLongPress }: CategoryExploreCardProps) {
+  const { fitTrackColors } = useTheme();
   const hasPhotos = category.photoCount > 0;
   const chipActive = hasPhotos && isRecentPhoto(category.lastPhotoDate);
   const photoLabel =
@@ -38,8 +40,8 @@ export function CategoryExploreCard({ category, onPress, onLongPress }: Category
   const iconColor = useCustomIcon
     ? '#FFFFFF'
     : chipActive
-      ? FitTrackColors.primaryContainer
-      : FitTrackColors.onSurfaceVariant;
+      ? fitTrackColors.primaryContainer
+      : fitTrackColors.onSurfaceVariant;
 
   return (
     <TouchableOpacity
@@ -54,6 +56,7 @@ export function CategoryExploreCard({ category, onPress, onLongPress }: Category
             <View
               style={[
                 styles.iconBox,
+                { backgroundColor: fitTrackColors.surfaceContainer, borderColor: fitTrackColors.glassBorder },
                 useCustomIcon ? { backgroundColor: category.color } : undefined,
               ]}
             >
@@ -64,22 +67,27 @@ export function CategoryExploreCard({ category, onPress, onLongPress }: Category
               )}
             </View>
             {hasPhotos ? (
-              <View style={[styles.chip, chipActive ? styles.chipActive : styles.chipMuted]}>
-                <Text style={[styles.chipText, chipActive ? styles.chipTextActive : styles.chipTextMuted]}>
+              <View style={[styles.chip, chipActive ? styles.chipActive : styles.chipMuted, chipActive ? {
+                backgroundColor: fitTrackColors.primaryContainerMuted,
+                borderColor: fitTrackColors.primaryContainerBorder,
+              } : { backgroundColor: fitTrackColors.secondaryContainer, borderColor: fitTrackColors.glassBorder }]}>
+                <Text style={[styles.chipText, chipActive ? styles.chipTextActive : styles.chipTextMuted, {
+                  color: chipActive ? fitTrackColors.primaryContainer : fitTrackColors.onSurfaceVariant,
+                }]}>
                   {photoLabel}
                 </Text>
               </View>
             ) : (
-              <View style={[styles.chip, styles.chipMuted]}>
-                <Text style={[styles.chipText, styles.chipTextMuted]}>0 PHOTOS</Text>
+              <View style={[styles.chip, styles.chipMuted, { backgroundColor: fitTrackColors.secondaryContainer, borderColor: fitTrackColors.glassBorder }]}>
+                <Text style={[styles.chipText, styles.chipTextMuted, { color: fitTrackColors.onSurfaceVariant }]}>0 PHOTOS</Text>
               </View>
             )}
           </View>
 
-          <Text style={styles.name}>{category.name}</Text>
+          <Text style={[styles.name, { color: fitTrackColors.onBackground }]}>{category.name}</Text>
           <View style={styles.lastRow}>
-            <IconSymbol name="clock.fill" size={16} color={FitTrackColors.onSurfaceVariant} />
-            <Text style={styles.lastText}>Last photo: {formatLastPhoto(category.lastPhotoDate)}</Text>
+            <IconSymbol name="clock.fill" size={16} color={fitTrackColors.onSurfaceVariant} />
+            <Text style={[styles.lastText, { color: fitTrackColors.onSurfaceVariant }]}>Last photo: {formatLastPhoto(category.lastPhotoDate)}</Text>
           </View>
         </View>
       </GlassPanel>

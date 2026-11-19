@@ -1,45 +1,30 @@
 # FitTrack Progress — Privacy Policy
 
-**Last updated:** June 2026
+**Last updated:** October 2026
 
-## Overview
+FitTrack Progress does not provide accounts or send fitness tracking data to a FitTrack server. The profile, categories, progress photos, and preferences are stored by the app on the device where they were added.
 
-FitTrack Progress helps you track fitness progress with photos and categories. This policy describes what data the app processes and how it is stored.
+## Data stored on your device
 
-## Data we collect
+- Your optional profile name, profile image, and bio.
+- Category names, colors, icons, photo dates, dimensions, and category assignments.
+- Progress photos selected or captured in the app.
+- Theme, workout reminder schedule, and the optional biometric app-lock setting.
 
-- **Account information:** Email and profile fields (display name, bio, avatar) when you sign in via wrAuth.
-- **Progress photos:** Images you capture or import, encrypted on your device before upload to your wrAuth storage.
-- **Categories and metadata:** Names, colors, icons, capture dates, and category assignments for photos.
-- **Preferences:** Theme, workout reminder schedule, and optional biometric unlock settings stored on your device.
+Categories and photo details are stored in a local SQLite database. Profile and preference fields use local app storage. The SQLite and profile fields do not use separate SQLCipher encryption; they rely on the operating system's app-private storage and device protections. Photo files have additional app-level encryption, and their key is held in the device's secure storage. The app requests media-library or camera access only when you choose an image or take a photo.
 
-## How we use data
+## Network and backups
 
-- Sync categories and photo metadata to your wrAuth account so you can restore data on a new device.
-- Send local workout reminder notifications at times you configure.
-- Optional biometric unlock stores a refresh token in the device secure enclave (never sent to third parties).
+The app does not use a user account, authentication provider, cloud database, cloud photo storage, or Expo app-update services. Android cloud and device-to-device backup rules exclude app data. The iOS app excludes its Documents and Library folders from system backup.
 
-## Data storage and security
+## Export and sharing
 
-- Photo files use AES-GCM encryption with a device-specific key; legacy photos may use an older format until re-saved.
-- Session refresh tokens are stored in the platform secure store; access tokens and profile fields use app storage.
-- We do not sell your personal data.
+Export creates a ZIP from the data already on the device. Nothing is transferred until you choose a destination in the device share sheet. A recipient or destination you choose may store or transmit that exported copy under its own privacy policy.
 
-## Your choices
+## Data removal
 
-- Export category and photo metadata from Settings.
-- Delete your account from Settings to remove remote data and sign out.
-- Disable biometric unlock or workout reminders at any time.
-
-## Third parties
-
-- **wrAuth** — authentication, database, and file storage for your account.
-- **Expo / EAS** — app updates and crash diagnostics in production builds when enabled.
+There is no FitTrack account to delete. Removing the app or clearing its app storage removes its local data. Export important data before uninstalling or replacing the device.
 
 ## Contact
 
-Set `EXPO_PUBLIC_SUPPORT_EMAIL` in your build environment for in-app support, or open an issue in the project repository.
-
-## Changes
-
-We may update this policy; the in-app link will point to the latest published version.
+For questions, open an issue in the project repository.

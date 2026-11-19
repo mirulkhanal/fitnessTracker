@@ -1,4 +1,5 @@
 import { FitTrackColors, FitTrackFonts, FitTrackRadius } from '@/constants/fittrack-theme';
+import { useTheme } from '@/contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -15,6 +16,7 @@ const TAB_BAR_CLEARANCE = 88;
 
 export function HomeFab({ onPress, bottomOffset = TAB_BAR_CLEARANCE }: HomeFabProps) {
   const insets = useSafeAreaInsets();
+  const { fitTrackColors } = useTheme();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -44,16 +46,19 @@ export function HomeFab({ onPress, bottomOffset = TAB_BAR_CLEARANCE }: HomeFabPr
         animatedStyle,
       ]}
     >
-      <View style={styles.glow} />
+      <View style={[styles.glow, { backgroundColor: fitTrackColors.fabGlow }]} />
       <Pressable
-        style={styles.fab}
+        style={[styles.fab, {
+          backgroundColor: fitTrackColors.primaryContainer,
+          shadowColor: fitTrackColors.primaryContainer,
+        }]}
         onPress={handlePress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         accessibilityRole="button"
         accessibilityLabel="Add progress photo"
       >
-        <Text style={styles.plus}>+</Text>
+        <Text style={[styles.plus, { color: fitTrackColors.onPrimaryContainer }]}>+</Text>
       </Pressable>
     </Animated.View>
   );
