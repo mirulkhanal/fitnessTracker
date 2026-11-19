@@ -4,14 +4,16 @@ FitTrack has no backend, account flow, or EAS dependency. Releases are installab
 
 ## Automatic release (push to `master`)
 
-Every push to `master` runs **Android Release**:
+On every push to `master`:
 
-1. Install dependencies and set up the Android SDK on the runner
-2. Build a release APK with local Gradle (`pnpm build:android:local`)
-3. Bump a semver tag from conventional commits (`vX.Y.Z`)
-4. Create or update the matching GitHub Release and attach `FitTrack-Progress-vX.Y.Z.apk`
+1. **CI** runs first (Expo dependency check, lint, typecheck, expo-doctor)
+2. **Android Release** starts only after CI succeeds
+3. If the commit only changes CI/docs/tooling since the last `v*` tag (or the message contains `[skip release]`), the APK build is skipped
+4. Otherwise it builds a release APK, bumps a semver tag (`vX.Y.Z`), and attaches `FitTrack-Progress-vX.Y.Z.apk` to a GitHub Release
 
 No extra repository secrets are required beyond GitHub Actions' built-in `GITHUB_TOKEN`.
+
+To fix CI/docs without rebuilding the APK, either change only those files (auto-skip) or add `[skip release]` to the commit message.
 
 ## Local Android build
 
